@@ -29,8 +29,8 @@
 
 #include <string>
 
-const std::string LICENSE_PLATE_MAX;
-const std::string SAILING_ID_MAX;
+const std::string LICENSE_PLATE_MAX; // Capacity of license plate
+const std::string SAILING_ID_MAX;    // Capacity of Sailing ID 
 
 //--------------------------------------------------
 // Minimal type used for interface clarity only.
