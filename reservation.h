@@ -29,16 +29,16 @@
 
 #include <string>
 
-const std::string LICENSE_PLATE_MAX; // Capacity of license plate
-const std::string SAILING_ID_MAX;    // Capacity of Sailing ID 
+const std::string LICENSE_PLATE_MAX; // Capacity of license plate (capacity is 10)
+const std::string SAILING_ID_MAX;    // Capacity of Sailing ID  (capacity is 9)
 
 //--------------------------------------------------
 // Minimal type used for interface clarity only.
 // This struct represents a reservation as seen at the interface level.
 // Do not assume this matches the internal data layout in Assignment 4.
 struct ReservationData {
-    std::string licensePlate;   // Vehicle license plate (capacity is 10)
-    std::string sailingID;      // ID used to define which sailing. (capacity is 9)
+    std::string licensePlate;   // Vehicle license plate 
+    std::string sailingID;      // ID used to define which sailing. 
     bool onboard;               // True if already checked in
 };
 

@@ -38,8 +38,8 @@
 // This struct is used only for passing data across modules.
 // It does not imply internal storage format.
 struct ReservationRecord {
-    std::string licensePlate;    // Vehicle license plate (varchar(20))
-    std::string sailingID;     // ID used to define which sailing. (varchar(20))
+    std::string licensePlate;    // Vehicle license plate 
+    std::string sailingID;     // ID used to define which sailing. 
     bool onboard;            // check-in status
 };
 
