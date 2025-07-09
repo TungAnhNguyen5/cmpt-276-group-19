@@ -31,6 +31,7 @@
 
 #include <string>
 #include <vector>
+#include <fstream>
 
 //--------------------------------------------------
 // Interface type representing a reservation record.
@@ -70,7 +71,7 @@ bool getReservation(
 //--------------------------------------------------
 // Checks if a reservation exists in the file.
 bool exists(
-    const std::string &licensePlate,     // in: vehicle ID
+    const std::string &licensePlate,   // in: vehicle ID
     const std::string &sailingID      // in: sailing ID
 );
 
