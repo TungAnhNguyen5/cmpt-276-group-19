@@ -29,17 +29,18 @@
 
 #include <string>
 
-const int LICENSE_PLATE_MAX; // Capacity of license plate (capacity is 10)
-const int SAILING_ID_MAX;    // Capacity of Sailing ID  (capacity is 9)
+const int LICENSE_PLATE_MAX = 10; // Capacity of license plate (capacity is 10)
+const int SAILING_ID_MAX = 9;     // Capacity of Sailing ID  (capacity is 9)
 
 //--------------------------------------------------
 // Minimal type used for interface clarity only.
 // This struct represents a reservation as seen at the interface level.
 // Do not assume this matches the internal data layout in Assignment 4.
-struct ReservationData {
-    std::string licensePlate;   // Vehicle license plate (capacity is 10 characters)
-    std::string sailingID;      // ID used to define which sailing. (capacity is 9 characters)
-    bool onboard;               // True if already checked in, false otherwise.
+struct ReservationData
+{
+    std::string licensePlate; // Vehicle license plate (capacity is 10 characters)
+    std::string sailingID;    // ID used to define which sailing. (capacity is 9 characters)
+    bool onboard;             // True if already checked in, false otherwise.
 };
 
 //--------------------------------------------------
@@ -54,49 +55,51 @@ void shutdown();
 //--------------------------------------------------
 // Adds a reservation for a vehicle on a sailing. Returns true if successful, false otherwise.
 bool addReservation(
-    const std::string &sailingID,   // in: sailing to reserve on
-    const std::string &licensePlate,// in: vehicle's license plate
-    const std::string &phone,       // in: contact phone number 
-    bool isSpecial,                 // in: true if special vehicle
-    float height,                   // in: height if special (m), 0 otherwise
-    float length                    // in: length if special (m), 0 otherwise
+    const std::string &sailingID,    // in: sailing to reserve on
+    const std::string &licensePlate, // in: vehicle's license plate
+    const std::string &phone,        // in: contact phone number
+    bool isSpecial,                  // in: true if special vehicle
+    float height,                    // in: height if special (m), 0 otherwise
+    float length                     // in: length if special (m), 0 otherwise
 );
 
 //--------------------------------------------------
 // Changes a reservation to checked-in status if it is not already checked-in. Returns true if successful, false otherwise.
 bool checkedIn(
     const std::string &sailingID,   // in: sailing ID
-    const std::string &licensePlate    // in: vehicle ID
+    const std::string &licensePlate // in: vehicle ID
 );
 
 //--------------------------------------------------
 // Updates an existing reservation. Returns true if successful, false otherwise.
 bool editReservation(
-    const std::string &sailingID,   // in: sailing ID
-    const std::string &phone       // in: phone number to locate reservation
+    const std::string &sailingID, // in: sailing ID
+    const std::string &phone      // in: phone number to locate reservation
 );
 
 //--------------------------------------------------
-// Starts the checked-in process by taking sailing ID, license plate. 
-void checkIn(
-    const std::string &sailingID,   // in: sailing ID
-    const std::string &licensePlate    // in: vehicle ID
+// Starts the checked-in process by taking sailing ID, license plate, returning fare fee
+float checkIn(
+    const std::string &sailingID,    // in: sailing ID
+    const std::string &licensePlate, // in: vehicle ID
+    bool isSpecial,                  // in: true if special vehicle
+    float height,                    // in: height if special (m), 0 otherwise
+    float length                     // in: length if special (m), 0 otherwise
 );
 
 //--------------------------------------------------
 // Calculates fare based on special status and vehicle dimensions.
 // Fare is returned in dollars to 2 decimal places.
 float calculateFare(
-    bool isSpecial,         // in: true if special vehicle
-    float length,           // in: vehicle length in meters
-    float height            // in: vehicle height in meter
+    bool isSpecial, // in: true if special vehicle
+    float length,   // in: vehicle length in meters
+    float height    // in: vehicle height in meter
 );
-
 
 //--------------------------------------------------
 // Deletes all reservations associated with a sailing. Returns number of reservations deleted, 0 if none were deleted.
 int deleteAllOnSailing(
-    const std::string &sailingID    // in: sailing ID
+    const std::string &sailingID // in: sailing ID
 );
 
 //--------------------------------------------------

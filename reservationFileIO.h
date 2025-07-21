@@ -30,24 +30,27 @@
 #define RESERVATION_FILE_IO_H
 
 #include <string>
-#include <vector> 
+#include <vector>
 #include <fstream> // used for opening reservation file for reading/writing
+#include "reservation.h"
 
 //--------------------------------------------------
 // Interface type representing a reservation record.
 // This struct is used only for passing data across modules.
 // It does not imply internal storage format.
-struct ReservationRecord {
-    std::string licensePlate;    // Vehicle license plate (capacity is 10 characters)
-    std::string sailingID;      // ID used to define which sailing. (capacity is 9 characters)
-    bool onboard;              // True if already checked in, false otherwise.
+
+struct ReservationRecord
+{
+    char licensePlate[LICENSE_PLATE_MAX]; // Vehicle license plate (capacity is 10 characters)
+    char sailingID[SAILING_ID_MAX];       // ID used to define which sailing. (capacity is 9 characters)
+    bool onboard;                         // True if already checked in, false otherwise.
 };
 
 //--------------------------------------------------
 // Opens the reservation data file for reading/writing.
 // Returns true on success, false on failure.
 bool open(
-    const std::string &filename   // in: path to binary file
+    const std::string &filename // in: path to binary file
 );
 
 //--------------------------------------------------
@@ -57,41 +60,41 @@ void close();
 //--------------------------------------------------
 // Saves a reservation created into a ReservationRecord object. Returns true if successful, false otherwise.
 bool saveReservation(
-    const ReservationRecord &record   // in: reservation data to store
+    const ReservationRecord &record // in: reservation data to store
 );
 
 //--------------------------------------------------
 // Loads a reservation record by vehicle and sailing ID. Returns true if successful, false otherwise.
 bool getReservation(
-    const std::string &licensePlate,     // in: vehicle ID
-    const std::string &sailingID,        // in: sailing ID
-    ReservationRecord &record           // out: record to ReservationRecord object
+    const std::string &licensePlate, // in: vehicle ID
+    const std::string &sailingID,    // in: sailing ID
+    ReservationRecord &record        // out: record to ReservationRecord object
 );
 
 //--------------------------------------------------
 // Checks if a reservation exists in the file. Returns true if successful, false otherwise.
 bool exists(
-    const std::string &licensePlate,   // in: vehicle ID
-    const std::string &sailingID      // in: sailing ID
+    const std::string &licensePlate, // in: vehicle ID
+    const std::string &sailingID     // in: sailing ID
 );
 
 //--------------------------------------------------
 // Deletes a reservation from the file if it exists. Returns true if successful, false otherwise.
 bool deleteReservation(
-    const std::string &licensePlate,     // in: vehicle ID
-    const std::string &sailingID      // in: sailing ID
+    const std::string &licensePlate, // in: vehicle ID
+    const std::string &sailingID     // in: sailing ID
 );
 
 //--------------------------------------------------
 // Retrieves all reservations for a sailing.
 std::vector<ReservationRecord> getAllOnSailing(
-    const std::string &sailingID      // in: sailing ID
+    const std::string &sailingID // in: sailing ID
 );
 
 //--------------------------------------------------
 // Retrieves all reservations matching a vehicle.
 std::vector<ReservationRecord> getAllWithVehicle(
-    const std::string &licensePlate      // in: vehicle ID
+    const std::string &licensePlate // in: vehicle ID
 );
 
 #endif // RESERVATION_FILE_IO_H
