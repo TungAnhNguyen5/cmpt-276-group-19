@@ -1,3 +1,16 @@
+// FILE: sailing.h
+//************************************************************
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+//   Declares the interface for managing sailings, including
+//   adding, editing, and retrieving sailing records.
+//   Provides functionality for creating sailings, managing their
+//   attributes, and interfacing with the file I/O system for persistence.
+//************************************************************
+
 #ifndef SAILING_H
 #define SAILING_H
 

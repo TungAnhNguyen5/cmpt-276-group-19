@@ -1,4 +1,3 @@
-//************************************************************
 // FILE: ReservationFileIO.h
 //************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #4)

@@ -5,9 +5,10 @@
 // DATE: 2025/07/23
 //************************************************************
 // PURPOSE:
-// Implements the console-based user interface for the ferry reservation system.
-// Provides a scrolling, text-based interface accessible to users with little
-// computer experience. All operations are menu-driven with step-by-step guidance.
+//   Implements the Sailing class, which manages sailing records
+//   including creation, editing, and persistence through file I/O.
+//   Provides functionality for adding, editing, and retrieving sailings,
+//   as well as handling user input for sailing management.
 //************************************************************
 
 #include "sailing.h"
