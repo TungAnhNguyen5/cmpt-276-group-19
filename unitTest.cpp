@@ -57,12 +57,12 @@ int main()
     // Test data
     ReservationRecord rec1 = {};
     std::strncpy(rec1.licensePlate, "ABC123", LICENSE_PLATE_MAX);
-    std::strncpy(rec1.sailingID, "S001", SAILING_ID_MAX);
+    std::strncpy(rec1.sailingID, "S00-123-131", SAILING_ID_MAX);
     rec1.onboard = false;
 
     ReservationRecord rec2 = {};
     std::strncpy(rec2.licensePlate, "XYZ789", LICENSE_PLATE_MAX);
-    std::strncpy(rec2.sailingID, "S002", SAILING_ID_MAX);
+    std::strncpy(rec2.sailingID, "S00-321-134", SAILING_ID_MAX);
     rec2.onboard = true;
 
     // Save both records
@@ -77,7 +77,7 @@ int main()
 
     // Retrieve rec1
     ReservationRecord loaded1;
-    bool get1 = getReservation("ABC123", "S001", loaded1);
+    bool get1 = getReservation("ABC123", "S00-123-131", loaded1);
 
     std::cout << "Test 2: getReservation(rec1) - ";
     if (get1 && recordsEqual(rec1, loaded1))
@@ -87,7 +87,7 @@ int main()
 
     // Retrieve rec2
     ReservationRecord loaded2;
-    bool get2 = getReservation("XYZ789", "S002", loaded2);
+    bool get2 = getReservation("XYZ789", "S00-321-134", loaded2);
 
     std::cout << "Test 3: getReservation(rec2) - ";
     if (get2 && recordsEqual(rec2, loaded2))
