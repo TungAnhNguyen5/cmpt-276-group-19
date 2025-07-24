@@ -1,7 +1,7 @@
 //************************************************************
 // FILE: main.cpp
 //************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #3)
+// PROJECT: CMPT 276 – Ferry Reservation Software System 
 // TEAM: Group 19
 // DATE: 2025/07/09
 //************************************************************
@@ -11,20 +11,20 @@
 //************************************************************
 
 #include <iostream>
-#include "../header/ui.h"
+#include "ui.h"
 
 int main() {
-    // // Initialize system modules
-    // if (!UI::initialize()) {
-    //     std::cerr << "Initialization failed. Exiting program.\n";
-    //     return 1;
-    // }
+    // Initialize system modules
+    if (!UI::initialize()) {
+        std::cerr << "Initialization failed. Exiting program.\n";
+        return 1;
+    }
 
-    // // Launch main menu loop
-    // UI::mainMenu();
+    // Launch main menu loop
+    UI::mainMenu();
 
-    // // Shutdown and cleanup
-    // UI::shutdown();
+    // Shutdown and cleanup
+    UI::shutdown();
 
     return 0;
 }

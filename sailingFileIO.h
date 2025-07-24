@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include <fcntl.h> 
 
-//-------------------------------------------------------------------------------------------------
 // class used to read and write the saved sailings
 class sailingFileIO
 {
@@ -23,8 +22,6 @@ private:
     static void truncateFile();
 
 public:
-    
-    //-----------------------------------------------------------------------------------------
     // closes the file saved, returns false if it is unable to
     static bool closeFile();
 

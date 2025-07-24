@@ -6,8 +6,8 @@
 //   Handles persistent binary file storage for reservations.
 //************************************************************
 
-#include "../header/reservationFileIO.h"
-#include "../header/reservation.h"
+#include "reservationFileIO.h"
+#include "reservation.h"
 #include <fstream>
 #include <vector>
 #include <cstring>

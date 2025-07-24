@@ -1,7 +1,7 @@
 //************************************************************
 // FILE: UI.h
 //************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #3)
+// PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
 // DATE: 2025/07/09
 //************************************************************
@@ -33,32 +33,24 @@
 #include "reservation.h"
 #include "reservationFileIO.h"
 
-//--------------------------------------------------
 // Namespace UI: console-based user interface controller
-//--------------------------------------------------
 namespace UI {
 
-    //--------------------------------------------------
     // initialize
     // Sets up modules and loads initial data.
     // Returns true if successful.
     // out: none
-    //--------------------------------------------------
     bool initialize();
 
-    //--------------------------------------------------
     // mainMenu
     // Displays the main menu, processes user commands until exit selected.
     // in: none
     // out: none
-    //--------------------------------------------------
     void mainMenu();
 
-    //--------------------------------------------------
     // shutdown
     // Saves any pending changes, cleans up resources.
     // out: none
-    //--------------------------------------------------
     void shutdown();
 
 } // namespace UI

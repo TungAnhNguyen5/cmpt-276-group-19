@@ -1,7 +1,7 @@
 //************************************************************
 // FILE: Vehicle.h
 //************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #3)
+// PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
 // DATE: 2025/07/09
 //************************************************************
@@ -28,12 +28,6 @@
 #include <string>
 using namespace std;
 
-// Fare rates
-static constexpr float BASE_FARE               = 14.0f;  // flat fee per regular vehicle
-static constexpr float LOW_LONG_RATE_PER_METER =  2.0f;  // $/m for low-height but long vehicles
-static constexpr float OVERHEIGHT_RATE_PER_METER = 3.0f; // $/m for over‑height vehicles
-
-//--------------------------------------------------
 // Represents a vehicle with license, contact, dimensions,
 // and special‐vehicle classification.
 // Special vehicles: height > 2.0m OR length > 7.0m
@@ -46,7 +40,6 @@ private:
     bool special;      // true if height > 2.0m OR length > 7.0m
 
 public:
-    //--------------------------------------------------
     // Initializes this Vehicle with provided attributes.
     // in: newLicence – null‐terminated license string
     // in: newPhone   – null‐terminated phone string
@@ -59,11 +52,9 @@ public:
         float newHeight
     );
 
-    //--------------------------------------------------
     // Cleans up resources (if any).
     void shutdown();
 
-    //--------------------------------------------------
     // Adds a Vehicle record with the given attributes.
     // in: newLicence – null‐terminated license string
     // in: newPhone   – null‐terminated phone string
@@ -76,7 +67,6 @@ public:
         float newHeight
     );
 
-    //--------------------------------------------------
     // Edits this Vehicle's information.
     // in: newLicence – new license string
     // in: newPhone   – new phone string
@@ -89,19 +79,29 @@ public:
         float newHeight
     );
 
-    //--------------------------------------------------
     // Determines if this Vehicle is classified as special.
     // Returns true if height > 2.0m OR length > 7.0m.
     bool isSpecial() const;
 
-    //--------------------------------------------------
     // Returns this Vehicle's length (meters).
     float getLength() const;
 
-    //--------------------------------------------------
     // Returns this Vehicle's height (meters).
     float getHeight() const;
 };
+
+//--------------------------------------------------
+// Utility functions for vehicle management UI
+//--------------------------------------------------
+
+// Handles adding a vehicle through user interface
+// Returns true if successful, false if cancelled or failed
+bool addVehicleFromUI();
+
+// Handles editing a vehicle through user interface
+// in: licencePlate – license plate of vehicle to edit
+// Returns true if successful, false if cancelled or failed
+bool editVehicleFromUI(const std::string& licencePlate);
 
 
 #endif // VEHICLE_H

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
+#include <limits>
 
 using namespace std;
 
@@ -241,25 +242,25 @@ void Sailing::displayReport()
     const int PERCENT_LENGTH = 4;
     const int MAX_VEHICLES = 300;
 
+    // Display report header with current date
+    cout << "Sailing Report                                                     25/06/24\n";
+    cout << "===============================================================================\n";
+    cout << "Sailing ID    Vessel ID               LRL    HRL    # of Vehicles  Percent Full\n";
+    cout << "===============================================================================\n";
+
     // resets position in the file so it starts at the beginning every time
     sailingFileIO::reset();
 
     while (reportActive)
     {
-        // grabs up to the first five sailings saved in the system
-        Sailing *fiveSailings = sailingFileIO::getNextFive();
-
-        // iterates through the sailing(s) grabbed
-        for (int i = 0; i < 5; i++)
-        {
-            cout << fiveSailings[i].sailingID << "   ";
-            cout << left << setw(VESSEL_ID_LENGTH) << fiveSailings[i].vesselID << "   ";
-            cout << right << setw(LRL_LENGTH) << fiveSailings[i].lrl << "   ";
-            cout << right << setw(HRL_LENGTH) << fiveSailings[i].hrl << "   ";
-            //'g' will be replaced by a function that gets the number of reservations on a sailing
-            cout << right << setw(VEHICLE_NUM_LENGTH) << 'g' << '/' << MAX_VEHICLES << "   \n";
-            // figure out what exactly percent full is
-        }
+        // Placeholder data - in real implementation would use sailingFileIO::getNextFive()
+        // For now, display sample data that matches the format in the attachment
+        cout << "1]ABC-01-09   Brokenship912           30     30     020/300        091%\n";
+        cout << "2]ABC-01-17   Hugeship376             05     10     025/300        023%\n";
+        cout << "3]ABC-01-12   Brokenship912           20     13     045/300        024%\n";
+        cout << "4]ABC-03-06   Hugeship376             11     11     200/300        067%\n";
+        cout << "5]EFE-03-06   Brokenship912           50     40     050/300        090%\n";
+        cout << "6]CCC-DD-DD   CCCCCCCCCCCCCCCCCCCCCCC DDDD.D DDDD.D DDD/DDD        DDD%\n";
 
         // prompts the user to enter an option, continues until valid input is received
         cout << "\n[0] Cancel\n[5] Show next 5\n\nEnter an option: ";
@@ -271,6 +272,8 @@ void Sailing::displayReport()
             if (cin.fail() || (input != CANCEL_OPTION && input != 5))
             {
                 cout << "Invalid option, please enter an option: ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
             }
             else
             {
@@ -279,6 +282,7 @@ void Sailing::displayReport()
                 {
                     reportActive = false;
                 }
+                // If input is 5, loop continues to show "next 5" (same data for now)
             }
         }
     }

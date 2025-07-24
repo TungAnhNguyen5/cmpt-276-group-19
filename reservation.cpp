@@ -7,8 +7,8 @@
 //   editing, fare calculation, and reservation management.
 //************************************************************
 
-#include "../header/reservation.h"
-#include "../header/reservationFileIO.h"
+#include "reservation.h"
+#include "reservationFileIO.h"
 #include <iostream>
 #include <cstring>
 
