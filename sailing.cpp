@@ -217,6 +217,7 @@ void Sailing::editSailing()
             // opens manage reservations for this sailing, requires reservation class
             case RESERVATIONS_OPTION:
             {
+                ui::manageReservationsForSailing(sailingID);
                 break;
             }
             case DELETE_OPTION:
