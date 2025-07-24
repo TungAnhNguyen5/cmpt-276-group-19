@@ -1,5 +1,18 @@
+// FILE: sailing.cpp
+//************************************************************
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+// Implements the console-based user interface for the ferry reservation system.
+// Provides a scrolling, text-based interface accessible to users with little
+// computer experience. All operations are menu-driven with step-by-step guidance.
+//************************************************************
+
 #include "sailing.h"
 #include "sailingFileIO.h"
+#include "ui.h"
 #include <iostream>
 #include <iomanip>
 #include <cstring>
@@ -217,6 +230,7 @@ void Sailing::editSailing()
             // opens manage reservations for this sailing, requires reservation class
             case RESERVATIONS_OPTION:
             {
+                UI::manageReservationsForSailing(sailingID);
                 break;
             }
             case DELETE_OPTION:

@@ -1,4 +1,3 @@
-//************************************************************
 // FILE: ui.cpp
 //************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
@@ -12,7 +11,9 @@
 //************************************************************
 
 #include "ui.h"
-#include "sailingFileIO.h"
+#include "sailing.h"
+#include "vehicle.h"
+#include "reservation.h"
 #include <iostream>
 #include <string>
 #include <iomanip>
@@ -30,11 +31,9 @@ namespace UI {
         void editSailing(const string& sailingID);
         bool addNewVehicle();
         void editVehicleDetailed(const string& licensePlate);
-        void manageReservationsForSailing(const string& sailingID);
         bool addNewReservation(const string& sailingID);
         void editReservation(const string& sailingID, const string& licensePlate);
         void checkInProcess();
-        void displayAllSailings();
         
         // Clear input buffer and get valid integer input
         int getValidIntInput(int min = 0, int max = 9) {
@@ -81,61 +80,17 @@ namespace UI {
             cin.ignore();
         }
 
-        // Display all sailings from the system
-        void displayAllSailings() {
-            // Try to get real sailing data from the file I/O system
-            try {
-                // Reset to beginning and try to get sailings
-                sailingFileIO::reset();
-                Sailing* sailings = sailingFileIO::getNextFive();
-                
-                bool hasData = false;
-                for (int i = 0; i < 5; i++) {
-                    // Check if sailing has valid data (non-empty sailing ID)
-                    if (strlen(sailings[i].getSailingID()) > 0) {
-                        hasData = true;
-                        
-                        // Format the sailing display
-                        // Extract components from sailing ID for display
-                        string sid = sailings[i].getSailingID();
-                        string terminal = sid.substr(0, 3);
-                        string month = "01";  // Could be extracted from a fuller date if available
-                        string day = sid.substr(4, 2);
-                        string hour = sid.substr(7, 2);
-                        
-                        cout << sid << " - " << terminal << " - " << month << "/" << day 
-                             << " - " << hour << ":00 - VesselID - " 
-                             << (int)sailings[i].lrlRemaining() << "/" 
-                             << (int)(sailings[i].lrlRemaining() + 100) << "\n";  // Placeholder for total capacity
-                    }
-                }
-                
-                // If no real data found, show placeholder data
-                if (!hasData) {
-                    cout << "ABC-01-09 - ABC - 01/01 - 09:00 - Vicship123 - 2/1000\n";
-                    cout << "JKL-01-10 - JKL - 01/01 - 10:00 - Danship234 - 35/1000\n";
-                    cout << "DEF-02-09 - DEF - 01/02 - 09:00 - Airship263 - 999/1000\n";
-                    cout << "GHI-03-11 - GHI - 01/03 - 11:00 - Seaship456 - 150/1000\n";
-                    cout << "MNO-04-12 - MNO - 01/04 - 12:00 - Windship789 - 75/1000\n";
-                }
-                
-            } catch (...) {
-                // Fallback to placeholder data if file I/O fails
-                cout << "ABC-01-09 - ABC - 01/01 - 09:00 - Vicship123 - 2/1000\n";
-                cout << "JKL-01-10 - JKL - 01/01 - 10:00 - Danship234 - 35/1000\n";
-                cout << "DEF-02-09 - DEF - 01/02 - 09:00 - Airship263 - 999/1000\n";
-                cout << "GHI-03-11 - GHI - 01/03 - 11:00 - Seaship456 - 150/1000\n";
-                cout << "MNO-04-12 - MNO - 01/04 - 12:00 - Windship789 - 75/1000\n";
-            }
-        }
-
         // Display sailing management submenu
         void manageSailingsMenu() {
             while (true) {
                 displayHeader("Manage Sailings");
                 
-                // Display existing sailings using the dedicated function
-                displayAllSailings();
+                // Display sample sailings
+                cout << "ABC-01-09 - ABC - 01/01 - 09:00 - Vicship123 - 2/1000\n";
+                cout << "JKL-01-10 - JKL - 01/01 - 10:00 - Danship234 - 35/1000\n";
+                cout << "DEF-02-09 - DEF - 01/02 - 09:00 - Airship263 - 999/1000\n";
+                cout << "GHI-03-11 - GHI - 01/03 - 11:00 - Seaship456 - 150/1000\n";
+                cout << "MNO-04-12 - MNO - 01/04 - 12:00 - Windship789 - 75/1000\n";
                 cout << "\n";
                 
                 cout << "[0] Cancel\n";
@@ -164,163 +119,20 @@ namespace UI {
         
         // Add new sailing with step-by-step process
         bool addNewSailing() {
-            // Step 1: Get departure terminal
-            displayHeader("New Sailing");
-            cout << "[0] Cancel\n\n";
-            cout << "Format: 3 letters (e.g., ABC, DEF, GHI)\n";
-            string terminal = getStringInput("Enter a departure terminal: ");
-            if (terminal == "CANCEL") return false;
-            displayFooter();
-            
-            // Step 2: Get departure date
-            displayHeader("New Sailing");
-            cout << "Departure Terminal: " << terminal << "\n\n";
-            cout << "[0] Cancel\n\n";
-            cout << "Format: MMDD (e.g., 0115 for January 15th)\n";
-            string date = getStringInput("Enter a departure date: ");
-            if (date == "CANCEL") return false;
-            // Format date from MMDD to MM/DD
-            if (date.length() == 4) {
-                date = date.substr(0,2) + "/" + date.substr(2,2);
-            }
-            displayFooter();
-            
-            // Step 3: Get departure time
-            displayHeader("New Sailing");
-            cout << "Departure Terminal: " << terminal << "\n";
-            cout << "Departure Date: " << date << "\n\n";
-            cout << "[0] Cancel\n\n";
-            cout << "Format: HHMM (e.g., 0900 for 9:00 AM, 1430 for 2:30 PM)\n";
-            string time = getStringInput("Enter a departure time: ");
-            if (time == "CANCEL") return false;
-            // Format time from HHMM to HH:MM
-            if (time.length() == 4) {
-                time = time.substr(0,2) + ":" + time.substr(2,2);
-            }
-            displayFooter();
-            
-            // Step 4: Get vessel ID
-            displayHeader("New Sailing");
-            cout << "Departure Terminal: " << terminal << "\n";
-            cout << "Departure Date: " << date << "\n";
-            cout << "Departure Time: " << time << "\n\n";
-            cout << "[0] Cancel\n\n";
-            cout << "Format: Alphanumeric vessel identifier (e.g., Hugeship876, Vicship123)\n";
-            string vesselID = getStringInput("Enter an option or vessel ID: ");
-            if (vesselID == "CANCEL") return false;
-            displayFooter();
-            
-            // Step 5: Get LCLL
-            displayHeader("New Sailing");
-            cout << "Departure Terminal: " << terminal << "\n";
-            cout << "Departure Date: " << date << "\n";
-            cout << "Departure Time: " << time << "\n";
-            cout << "Vessel ID: " << vesselID << "\n\n";
-            cout << "[0] Cancel\n\n";
-            cout << "Format: Number of large car lane meters (e.g., 8, 12, 16)\n";
-            cout << "Enter LCLL: ";
-            int lcll;
-            cin >> lcll;
-            cin.ignore();
-            displayFooter();
-            
-            // Step 6: Get HCLL
-            displayHeader("New Sailing");
-            cout << "Departure Terminal: " << terminal << "\n";
-            cout << "Departure Date: " << date << "\n";
-            cout << "Departure Time: " << time << "\n";
-            cout << "Vessel ID: " << vesselID << "\n";
-            cout << "LCLL: " << lcll << "\n\n";
-            cout << "[0] Cancel\n\n";
-            cout << "Format: Number of high clearance lane meters (e.g., 16, 24, 32)\n";
-            cout << "Enter HCLL: ";
-            int hcll;
-            cin >> hcll;
-            cin.ignore();
-            displayFooter();
-            
-            // Step 7: Confirmation
-            displayHeader("Confirm Sailing");
-            string sailingID = terminal + "-" + date.substr(3,2) + "-" + time.substr(0,2);
-            cout << "Sailing ID: " << sailingID << "\n";
-            cout << "Terminal: " << terminal << "\n";
-            cout << "Day: " << date << "\n";
-            cout << "Time: " << time << "\n";
-            cout << "Vessel: " << vesselID << "\n";
-            cout << "LCLL: " << lcll << "\n";
-            cout << "HCLL: " << hcll << "\n\n";
-            cout << "[0] Cancel\n";
-            cout << "[1] Add Sailing\n\n";
-            cout << "Enter an option: ";
-            
-            int choice = getValidIntInput(0, 1);
-            displayFooter();
-            
-            if (choice == 1) {
-                // Here you would call the actual Sailing::addSailing() with the collected data
-                return true;
-            }
-            return false;
+            // Call the existing Sailing::addSailing() function
+            return Sailing::addSailing();
         }
         
         // Edit sailing interface
         void editSailing(const string& sailingID) {
-            while (true) {
-                displayHeader("Edit Sailing");
-                cout << "Sailing ID: " << sailingID << "\n";
-                cout << "[1] Departure Terminal: ABC (Format: 3 letters)\n";
-                cout << "[2] Departure Day: 01/01 (Format: MM/DD)\n";
-                cout << "[3] Departure Time: 09:00 (Format: HH:MM)\n";
-                cout << "[4] Vessel ID: Hugeship876 (Format: Alphanumeric)\n";
-                cout << "[5] LCLL: 8 (Format: Number of meters)\n";
-                cout << "[6] HCLL: 16 (Format: Number of meters)\n";
-                cout << "Capacity: 2/1000\n";
-                cout << "Vehicle Space: 10/300\n\n";
-                cout << "[0] Cancel\n";
-                cout << "[7] Confirm\n";
-                cout << "[8] Manage Reservations\n";
-                cout << "[9] Delete Sailing\n\n";
-                cout << "Enter an option: ";
-                
-                int choice = getValidIntInput(0, 9);
+            // Get the sailing object from the file I/O system
+            try {
+                Sailing sailing = Sailing::getSailingFromIO(sailingID.c_str());
+                // Call the existing editSailing() method
+                sailing.editSailing();
+            } catch (...) {
+                cout << "Sailing not found or error accessing sailing data.\n";
                 displayFooter();
-                
-                switch (choice) {
-                    case 0:
-                        cout << "Changes Reverted. Returning to the main menu.\n";
-                        displayFooter();
-                        return;
-                    case 1:
-                    case 2:
-                    case 3:
-                    case 4:
-                    case 5:
-                    case 6: {
-                        string fieldName = (choice == 1) ? "Departure Terminal" :
-                                         (choice == 2) ? "Departure Day" :
-                                         (choice == 3) ? "Departure Time" :
-                                         (choice == 4) ? "Vessel ID" :
-                                         (choice == 5) ? "LCLL" : "HCLL";
-                        displayHeader("Edit Sailing");
-                        cout << "Enter new " << fieldName << ": ";
-                        string newValue;
-                        getline(cin, newValue);
-                        cout << "Updated Successfully.\n";
-                        displayFooter();
-                        break;
-                    }
-                    case 7:
-                        cout << "Changes Successfully Saved. Returning to the main menu.\n";
-                        displayFooter();
-                        return;
-                    case 8:
-                        manageReservationsForSailing(sailingID);
-                        break;
-                    case 9:
-                        cout << "Sailing Successfully Deleted. Returning to the main menu.\n";
-                        displayFooter();
-                        return;
-                }
             }
         }
 
@@ -329,10 +141,35 @@ namespace UI {
             while (true) {
                 displayHeader("Manage Vehicles");
                 
-                // Display existing vehicles (placeholder - would get from vehicleFileIO)
-                cout << "ABC123 - Sp Vehicle\n";
-                cout << "BAC213 - Rg Vehicle\n";
-                cout << "CBA321 - Rg Vehicle\n\n";
+                // Display existing vehicles from the file I/O system
+                try {
+                    FileIOforVehicle vehicleIO;
+                    if (vehicleIO.open()) {
+                        vector<Vehicle> vehicles = vehicleIO.getAllVehicles();
+                        
+                        if (!vehicles.empty()) {
+                            int specialCount = 0, regularCount = 0;
+                            for (const auto& vehicle : vehicles) {
+                                if (vehicle.isSpecial()) {
+                                    specialCount++;
+                                } else {
+                                    regularCount++;
+                                }
+                            }
+                            cout << "Total Vehicles: " << vehicles.size() << " (" 
+                                 << specialCount << " Special, " << regularCount << " Regular)\n";
+                            cout << "Enter a license plate number to edit a specific vehicle.\n";
+                        } else {
+                            cout << "No vehicles found in the system.\n";
+                        }
+                        vehicleIO.close();
+                    } else {
+                        cout << "Unable to access vehicle data.\n";
+                    }
+                } catch (...) {
+                    cout << "Error accessing vehicle data.\n";
+                }
+                cout << "\n";
                 
                 cout << "[0] Cancel\n";
                 cout << "[1] Add Vehicle\n\n";
@@ -360,101 +197,19 @@ namespace UI {
         
         // Add new vehicle with step-by-step process
         bool addNewVehicle() {
-            // Step 1: Get license plate
-            displayHeader("Add Vehicle");
-            cout << "[0] Cancel\n\n";
-            cout << "Format: Alphanumeric license plate (e.g., ABC123, XYZ789)\n";
-            string license = getStringInput("Enter an option or license plate number: ");
-            if (license == "CANCEL") return false;
-            displayFooter();
-            
-            // Step 2: Get vehicle height
-            displayHeader("Add Vehicle");
-            cout << "License Plate: " << license << "\n\n";
-            cout << "[0] Cancel\n";
-            cout << "[1] Add Vehicle\n\n";
-            cout << "Format: Height in meters (e.g., 2.5, 3.0, 4.2)\n";
-            cout << "Enter an option or vehicle height: ";
-            string heightInput;
-            getline(cin, heightInput);
-            if (heightInput == "0" || heightInput == "Cancel") return false;
-            float height = stof(heightInput);
-            displayFooter();
-            
-            // Step 3: Get vehicle length
-            displayHeader("Add Vehicle");
-            cout << "License Plate: " << license << "\n";
-            cout << "Vehicle Height: " << height << "\n\n";
-            cout << "[0] Cancel\n";
-            cout << "[1] Add Vehicle\n\n";
-            cout << "Format: Length in meters (e.g., 5.5, 12.0, 18.5)\n";
-            cout << "Enter an option or vehicle length: ";
-            string lengthInput;
-            getline(cin, lengthInput);
-            if (lengthInput == "0" || lengthInput == "Cancel") return false;
-            float length = stof(lengthInput);
-            displayFooter();
-            
-            // Step 4: Confirmation
-            displayHeader("Add Vehicle");
-            cout << "License Plate: " << license << "\n";
-            cout << "Vehicle Height: " << height << "\n";
-            cout << "Vehicle Length: " << length << "\n\n";
-            cout << "[0] Cancel\n";
-            cout << "[1] Add Vehicle\n\n";
-            cout << "Enter an option: ";
-            
-            int choice = getValidIntInput(0, 1);
-            displayFooter();
-            
-            if (choice == 1) {
-                // Here you would call addVehicleFromUI or create the vehicle
-                return true;
-            }
-            return false;
+            // Call the existing addVehicleFromUI() function
+            return addVehicleFromUI();
         }
         
         // Edit vehicle interface
         void editVehicleDetailed(const string& licensePlate) {
-            while (true) {
-                displayHeader("Edit Vehicle");
-                cout << "[1] License Plate: " << licensePlate << " (Format: Alphanumeric)\n";
-                cout << "[2] Vehicle Height: 15 (Format: Meters, e.g., 2.5)\n";
-                cout << "[3] Vehicle Length: 15 (Format: Meters, e.g., 12.0)\n\n";
-                cout << "[0] Cancel\n";
-                cout << "[8] Confirm\n";
-                cout << "[9] Delete Vehicle\n\n";
-                cout << "Enter an option: ";
-                
-                int choice = getValidIntInput(0, 9);
-                displayFooter();
-                
-                switch (choice) {
-                    case 0:
-                        cout << "Changes Reverted. Returning to the main menu.\n";
-                        displayFooter();
-                        return;
-                    case 1:
-                    case 2:
-                    case 3: {
-                        string fieldName = (choice == 1) ? "License Plate" :
-                                         (choice == 2) ? "Vehicle Height" : "Vehicle Length";
-                        cout << "Enter the new value: ";
-                        string newValue;
-                        getline(cin, newValue);
-                        cout << "Updated Successfully.\n";
-                        break;
-                    }
-                    case 8:
-                        cout << "Changes Successfully Saved\n";
-                        displayFooter();
-                        return;
-                    case 9:
-                        cout << "Vehicle Successfully Deleted. Returning to the main menu.\n";
-                        displayFooter();
-                        return;
-                }
+            // Call the existing editVehicleFromUI() function
+            if (editVehicleFromUI(licensePlate)) {
+                cout << "Vehicle successfully updated.\n";
+            } else {
+                cout << "Vehicle edit cancelled or failed.\n";
             }
+            displayFooter();
         }
 
         // Display reservation management submenu
@@ -477,38 +232,6 @@ namespace UI {
                 } else {
                     // Assume it's a sailing ID
                     manageReservationsForSailing(input);
-                }
-            }
-        }
-        
-        // Manage reservations for a specific sailing
-        void manageReservationsForSailing(const string& sailingID) {
-            while (true) {
-                displayHeader("Manage Reservations");
-                
-                // Display existing reservations for this sailing
-                cout << "ABC2QA - 9543331111 - Rg Vehicle\n";
-                cout << "Q213WE - 9340505333 - Sp Vehicle\n";
-                cout << "HELLO1 - 2342342345 - Rg Vehicle\n\n";
-                
-                cout << "[0] Cancel\n";
-                cout << "[1] New Reservation\n\n";
-                cout << "Enter an option or phone number: ";
-                
-                string input;
-                getline(cin, input);
-                displayFooter();
-                
-                if (input == "0" || input == "Cancel" || input == "cancel") {
-                    return;
-                } else if (input == "1") {
-                    if (addNewReservation(sailingID)) {
-                        cout << "Reservation Successfully Added. Returning to the main menu.\n";
-                        pauseForUser();
-                    }
-                } else {
-                    // Assume it's a phone number or license plate for editing
-                    editReservation(sailingID, input);
                 }
             }
         }
@@ -661,6 +384,39 @@ namespace UI {
     } // end anonymous namespace
 
     // Public interface implementation
+    
+    // Manage reservations for a specific sailing
+    void manageReservationsForSailing(const string& sailingID) {
+        while (true) {
+            displayHeader("Manage Reservations");
+            
+            // Display existing reservations for this sailing
+            cout << "ABC2QA - 9543331111 - Rg Vehicle\n";
+            cout << "Q213WE - 9340505333 - Sp Vehicle\n";
+            cout << "HELLO1 - 2342342345 - Rg Vehicle\n\n";
+            
+            cout << "[0] Cancel\n";
+            cout << "[1] New Reservation\n\n";
+            cout << "Enter an option or phone number: ";
+            
+            string input;
+            getline(cin, input);
+            displayFooter();
+            
+            if (input == "0" || input == "Cancel" || input == "cancel") {
+                return;
+            } else if (input == "1") {
+                if (addNewReservation(sailingID)) {
+                    cout << "Reservation Successfully Added. Returning to the main menu.\n";
+                    pauseForUser();
+                }
+            } else {
+                // Assume it's a phone number or license plate for editing
+                editReservation(sailingID, input);
+            }
+        }
+    }
+
     bool initialize() {
         cout << "Initializing Ferry Reservation System...\n";
         
