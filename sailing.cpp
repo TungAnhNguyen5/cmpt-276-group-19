@@ -138,8 +138,12 @@ void Sailing::editSailing()
     // runs the editing loop until either confirm, cancel, delete, or manage reservations is chosen
     while (editing)
     {
-        cin >> input;
-        if (cin.fail() || input < CANCEL_OPTION || input > DELETE_OPTION)
+        if (!(cin >> input))
+        {
+            // EOF reached or input failed
+            return;
+        }
+        if (input < CANCEL_OPTION || input > DELETE_OPTION)
         {
             cout << "Please enter a valid option: ";
         }
@@ -366,7 +370,11 @@ string Sailing::addDepTerm()
     {
         cout << "Enter a departure terminal: ";
 
-        cin >> depTerm;
+        if (!(cin >> depTerm))
+        {
+            // EOF reached or input failed
+            return "";
+        }
 
         // departure terminal is represented by 3 characters
         if (depTerm.length() != DEP_TERM_LENGTH)
@@ -390,15 +398,32 @@ string Sailing::addDate()
     {
         cout << "Enter a departure date: ";
 
-        cin >> date;
-        // date entered should be two digits to represent the date, month is not relevant
-        if (date.length() != DATE_LENGTH || stoi(date) < 0 || stoi(date) > 31)
+        if (!(cin >> date))
+        {
+            // EOF reached or input failed
+            return "";
+        }
+        
+        // date entered should be two digits for day of month
+        if (date.length() != DATE_LENGTH)
         {
             cout << "Invalid departure date.\n";
         }
         else
         {
-            validEntry = true;
+            try {
+                int day = stoi(date);
+                if (day < 1 || day > 28)
+                {
+                    cout << "Invalid departure date.\n";
+                }
+                else
+                {
+                    validEntry = true;
+                }
+            } catch (...) {
+                cout << "Invalid departure date.\n";
+            }
         }
     }
     return date;
@@ -413,15 +438,32 @@ string Sailing::addTime()
     {
         cout << "Enter a departure time: ";
 
-        cin >> time;
+        if (!(cin >> time))
+        {
+            // EOF reached or input failed
+            return "";
+        }
+        
         // time entered should be two digits in 24 hour time, can't be below 0 or above 23
-        if (time.length() != TIME_LENGTH || stoi(time) < 0 || stoi(time) > 23)
+        if (time.length() != TIME_LENGTH)
         {
             cout << "Invalid departure time.\n";
         }
         else
         {
-            validEntry = true;
+            try {
+                int hour = stoi(time);
+                if (hour < 0 || hour > 23)
+                {
+                    cout << "Invalid departure time.\n";
+                }
+                else
+                {
+                    validEntry = true;
+                }
+            } catch (...) {
+                cout << "Invalid departure time.\n";
+            }
         }
     }
     return time;
@@ -436,7 +478,12 @@ string Sailing::addVessel()
     {
         cout << "Enter a vessel ID: ";
 
-        cin >> vessel;
+        if (!(cin >> vessel))
+        {
+            // EOF reached or input failed
+            return "";
+        }
+        
         // vesselID can be between 1 and 25 characters
         if (vessel.length() > VESSEL_LENGTH || vessel.length() == 0)
         {
@@ -459,7 +506,11 @@ int Sailing::addLCLL()
     while (!validEntry)
     {
         cout << "Enter LCLL: ";
-        cin >> lcll;
+        if (!(cin >> lcll))
+        {
+            // EOF reached or input failed
+            return 0;
+        }
 
         // reprompts user if entered value is not a float or too big/small.
         // value is converted to DDDD.D form when saved.
@@ -484,7 +535,11 @@ int Sailing::addHCLL()
     while (!validEntry)
     {
         cout << "Enter HCLL: ";
-        cin >> hcll;
+        if (!(cin >> hcll))
+        {
+            // EOF reached or input failed
+            return 0;
+        }
 
         // reprompts user if entered value is not a float or too big/small.
         // value is converted to DDDD.D form when saved.
@@ -509,8 +564,12 @@ bool Sailing::confirm(int confirmOption)
         cout << "\n[" << CANCEL_OPTION << "] Cancel\n";
         cout << "[" << confirmOption << "] Confirm\n";
         cout << "Enter an option: ";
-        cin >> input;
-        if (cin.fail() || (input != CANCEL_OPTION && input != confirmOption))
+        if (!(cin >> input))
+        {
+            // EOF reached or input failed
+            return false;
+        }
+        if (input != CANCEL_OPTION && input != confirmOption)
         {
             cout << "Invalid option.\n";
         }
