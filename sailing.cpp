@@ -1,3 +1,19 @@
+// FILE: sailing.cpp
+//************************************************************
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/08/05
+//************************************************************
+// PURPOSE:
+// Implements binary file I/O operations for Sailing records
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/24 - Nathan Miller
+//          - Initial .cpp implementation based on header specification.
+// Rev. 2 - 2025/08/05 - Nathan Miller
+//          - Fully debugged final release version.
+//************************************************************
+
 #include "sailing.h"
 #include "sailingFileIO.h"
 #include "ui.h"
