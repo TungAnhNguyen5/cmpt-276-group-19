@@ -100,10 +100,17 @@ bool Sailing::addSailing()
 
 void Sailing::editSailing()
 {
-
     bool editing = true;
     int input;
     Sailing s = *this;
+    
+    // Validate that this sailing has valid data before proceeding
+    if (strlen(s.sailingID) == 0 || s.sailingID[0] == '\0') {
+        UI::displayHeader("Edit Sailing");
+        cout << "Error: Invalid sailing data. Cannot edit this sailing.\n";
+        UI::displayFooter();
+        return;
+    }
 
     // runs the editing loop until either confirm, cancel, delete, or manage reservations is chosen
     while (editing)
@@ -121,6 +128,15 @@ void Sailing::editSailing()
         };
 
         string sid = s.sailingID;
+        
+        // Additional validation: check if sailing ID has proper format
+        if (sid.length() < 7 || sid.find('-') == string::npos) {
+            UI::displayHeader("Edit Sailing");
+            cout << "Error: Invalid sailing ID format. Cannot edit this sailing.\n";
+            UI::displayFooter();
+            return;
+        }
+        
         UI::displayHeader("Edit Sailing");
         // for loop to print the option select in order
         for (int i = 1; i <= NUM_OF_OPTIONS; i++)
@@ -128,15 +144,27 @@ void Sailing::editSailing()
             switch (i)
             {
             case DEP_TERM:
-                cout << "[" << i << "] " << "Departure Terminal: " << sid.substr(0, 3) << "\n";
+                if (sid.length() >= 3) {
+                    cout << "[" << i << "] " << "Departure Terminal: " << sid.substr(0, 3) << "\n";
+                } else {
+                    cout << "[" << i << "] " << "Departure Terminal: [Invalid]\n";
+                }
                 break;
 
             case DEP_DAY:
-                cout << "[" << i << "] " << "Departure Day: " << sid.substr(4, 2) << "\n";
+                if (sid.length() >= 6) {
+                    cout << "[" << i << "] " << "Departure Day: " << sid.substr(4, 2) << "\n";
+                } else {
+                    cout << "[" << i << "] " << "Departure Day: [Invalid]\n";
+                }
                 break;
 
             case DEP_TIME:
-                cout << "[" << i << "] " << "Departure Time: " << sid.substr(7, 2) << "\n";
+                if (sid.length() >= 9) {
+                    cout << "[" << i << "] " << "Departure Time: " << sid.substr(7, 2) << "\n";
+                } else {
+                    cout << "[" << i << "] " << "Departure Time: [Invalid]\n";
+                }
                 break;
 
             case VESSEL_ID:
@@ -452,6 +480,7 @@ string Sailing::addDepTerm()
     string depTerm;
     while (!validEntry)
     {
+        cout << "Format: 3-letter terminal code (e.g., TSA, SWB, HGB)\n";
         cout << "Enter a departure terminal: ";
 
         cin >> depTerm;
@@ -459,7 +488,7 @@ string Sailing::addDepTerm()
         // departure terminal is represented by 3 characters
         if (depTerm.length() != DEP_TERM_LENGTH)
         {
-            cout << "Invalid departure terminal.\n";
+            cout << "Invalid departure terminal. Must be exactly 3 characters.\n";
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
@@ -478,13 +507,14 @@ string Sailing::addDate()
     string date;
     while (!validEntry)
     {
+        cout << "Format: 2-digit day (01-28, e.g., 01, 15, 28)\n";
         cout << "Enter a departure date: ";
 
         cin >> date;
         // date entered should be two digits to represent the date, month is not relevant
         if (date.length() != DATE_LENGTH || !std::all_of(date.begin(), date.end(), ::isdigit) || stoi(date) < 0 || stoi(date) > 28)
         {
-            cout << "Invalid departure date.\n";
+            cout << "Invalid departure date. Must be 2 digits between 01-28.\n";
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
@@ -503,13 +533,14 @@ string Sailing::addTime()
     string time;
     while (!validEntry)
     {
+        cout << "Format: 2-digit hour in 24-hour format (00-23, e.g., 08, 14, 23)\n";
         cout << "Enter a departure time: ";
 
         cin >> time;
         // time entered should be two digits in 24 hour time, can't be below 0 or above 23
         if (time.length() != TIME_LENGTH || !std::all_of(time.begin(), time.end(), ::isdigit) || stoi(time) < 0 || stoi(time) > 23)
         {
-            cout << "Invalid departure time.\n";
+            cout << "Invalid departure time. Must be 2 digits between 00-23.\n";
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
@@ -528,13 +559,14 @@ string Sailing::addVessel()
     string vessel;
     while (!validEntry)
     {
+        cout << "Format: Vessel name/ID (1-25 characters, e.g., CoastalRunner, Island123)\n";
         cout << "Enter a vessel ID: ";
 
         cin >> vessel;
         // vesselID can be between 1 and 25 characters
         if (vessel.length() > VESSEL_LENGTH || vessel.length() == 0)
         {
-            cout << "Invalid vessel ID.\n";
+            cout << "Invalid vessel ID. Must be 1-25 characters long.\n";
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
@@ -554,6 +586,7 @@ int Sailing::addLCLL()
 
     while (!validEntry)
     {
+        cout << "Format: Load Car Length Limit in meters (0-9999, e.g., 100, 250, 500)\n";
         cout << "Enter LCLL: ";
         cin >> lcll;
 
@@ -561,7 +594,7 @@ int Sailing::addLCLL()
         // value is converted to DDDD.D form when saved.
         if (cin.fail() || lcll > LCLL_MAX || lcll < 0)
         {
-            cout << "Invalid LCLL.\n";
+            cout << "Invalid LCLL. Must be a number between 0-9999.\n";
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
@@ -581,6 +614,7 @@ int Sailing::addHCLL()
 
     while (!validEntry)
     {
+        cout << "Format: High Clearance Lane Limit in meters (0-9999, e.g., 50, 150, 300)\n";
         cout << "Enter HCLL: ";
         cin >> hcll;
 
@@ -588,7 +622,7 @@ int Sailing::addHCLL()
         // value is converted to DDDD.D form when saved.
         if (cin.fail() || hcll > HCLL_MAX || hcll < 0)
         {
-            cout << "Invalid HCLL.\n";
+            cout << "Invalid HCLL. Must be a number between 0-9999.\n";
             cin.clear();
             cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }

@@ -84,6 +84,7 @@ namespace UI {
             
             cout << "[0] Cancel\n";
             cout << "[1] New Sailing\n\n";
+            cout << "Format: Sailing ID (e.g., TSA-15-08, HGB-01-14, SWB-28-23)\n";
             cout << "Enter a Sailing ID or a command: ";
             
             string input;
@@ -174,6 +175,7 @@ namespace UI {
             
             cout << "[0] Cancel\n";
             cout << "[1] Add Vehicle\n\n";
+            cout << "Format: License plate to edit (e.g., ABC123, BC1234, XYZ789)\n";
             cout << "Enter an option or license plate number: ";
             
             string input;
@@ -247,7 +249,8 @@ namespace UI {
         // Step 1: Get license plate
         displayHeader("Add Reservation");
         cout << "[0] Cancel\n\n";
-        cout << "Format: Alphanumeric license plate (e.g., ABC123, XYZ789)\n";
+        cout << "Format: Alphanumeric license plate (e.g., ABC123, BC1234, XYZ789)\n";
+        cout << "Note: If vehicle not in system, it will be added as regular vehicle\n";
         string license = getStringInput("Enter an option or license plate: ");
         if (license == "CANCEL") return false;
         displayFooter();
@@ -257,7 +260,7 @@ namespace UI {
         cout << "License Plate Number: " << license << "\n\n";
         cout << "[0] Cancel\n";
         cout << "[1] Add Reservation\n\n";
-        cout << "Format: 10-digit phone number (e.g., 2501234567)\n";
+        cout << "Format: Phone number with area code (e.g., 604-555-1234, 2501234567)\n";
         string phone = getStringInput("Enter an option or phone number: ");
         if (phone == "CANCEL") return false;
         displayFooter();

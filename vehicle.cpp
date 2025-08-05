@@ -216,6 +216,7 @@ bool addVehicleFromUI() {
     cout << "==============================================================\n";
     
     // Get license plate
+    cout << "Format: Alphanumeric license plate (e.g., ABC123, BC1234, 7XYZ890)\n";
     string licenceStr = getValidStringInput("License Plate (1-10 characters): ", 10);
     if (licenceStr == "CANCEL") {
         cout << "Operation cancelled.\n";
@@ -236,6 +237,7 @@ bool addVehicleFromUI() {
     vehicleFileIO.close();
     
     // Get phone number
+    cout << "Format: Phone number with area code (e.g., 604-555-1234, 2501234567)\n";
     string phoneStr = getValidStringInput("Phone Number (8-14 characters): ", 14);
     if (phoneStr == "CANCEL") {
         cout << "Operation cancelled.\n";
@@ -243,6 +245,9 @@ bool addVehicleFromUI() {
     }
     
     // Get vehicle dimensions
+    cout << "Format: Decimal number in meters (e.g., 5.2, 12.5, 18.0)\n";
+    cout << "Note: Regular vehicles: length ≤ 7.0m, height ≤ 2.0m\n";
+    cout << "      Special vehicles: length > 7.0m OR height > 2.0m\n";
     float length = getValidFloatInput("Vehicle Length (meters, 0.1-20.0): ", 0.1f, 20.0f);
     float height = getValidFloatInput("Vehicle Height (meters, 0.1-20.0): ", 0.1f, 20.0f);
     
