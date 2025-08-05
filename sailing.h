@@ -51,6 +51,10 @@ public:
     void editSailing();
 
     //-----------------------------------------------------------------------------------------
+    // static method to edit a sailing by sailing ID with validation
+    static void editSailing(const char *sailingID);
+
+    //-----------------------------------------------------------------------------------------
     // initializes this class as well as opens File I/O for Sailing class
     static void initialize();
 

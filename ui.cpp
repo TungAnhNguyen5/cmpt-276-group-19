@@ -117,25 +117,8 @@ namespace UI {
     
     // Edit sailing interface
     void editSailing(const char* sailingID) {
-        // First check if the sailing exists
-        if (!sailingFileIO::exists(sailingID)) {
-            displayHeader("Edit Sailing");
-            cout << "Sailing ID '" << sailingID << "' not found in the system.\n";
-            cout << "Please check the sailing ID and try again.\n";
-            displayFooter();
-            pauseForUser();
-            return;
-        }
-        
-        // Get the sailing object from the file I/O system
-        try {
-            Sailing sailing = Sailing::getSailingFromIO(sailingID);
-            // Call the existing editSailing() method
-            sailing.editSailing();
-        } catch (...) {
-            cout << "Error accessing sailing data.\n";
-            displayFooter();
-        }
+        // Use the static Sailing::editSailing method which includes validation
+        Sailing::editSailing(sailingID);
     }
 
     // Display vehicle management submenu

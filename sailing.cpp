@@ -712,3 +712,20 @@ void Sailing::createSailing(string line) {
         hrl = 0.0f;
     }
 }
+
+//-----------------------------------------------------------------------------------------
+// Static method to edit a sailing by sailing ID with validation
+void Sailing::editSailing(const char *sailingID)
+{
+    // Get the sailing object from the file I/O system
+    if (!sailingFileIO::exists(sailingID))
+    {
+        cout << "Sailing with ID " << sailingID << " does not exist.\n";
+        return;
+    }
+    else
+    {
+        Sailing s = Sailing::getSailingFromIO(sailingID);
+        s.editSailing();
+    }
+}
