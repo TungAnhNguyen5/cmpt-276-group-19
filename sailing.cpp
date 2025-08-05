@@ -321,12 +321,7 @@ void Sailing::editSailing()
             // opens manage reservations for this sailing, requires reservation class
             case RESERVATIONS_OPTION:
             {
-                // Clear the input buffer before calling manage reservations
-                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 UI::manageReservationsForSailing(s.sailingID);
-                // Clear the input buffer after returning from manage reservations
-                cin.clear();
-                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 break;
             }
             case DELETE_OPTION:

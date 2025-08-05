@@ -215,15 +215,26 @@ namespace UI {
                     
                     if (!vehicles.empty()) {
                         int specialCount = 0, regularCount = 0;
-                        // Loop goal: Count and display all vehicles in the system
+                        cout << "All Vehicles:\n";
+                        cout << "  License Plate    Phone Number     Type        Length    Height\n";
+                        cout << "  ---------------  ---------------  ----------  --------  --------\n";
+                        
+                        // Loop goal: Display detailed information for each vehicle
                         for (const auto& vehicle : vehicles) {
+                            string vehicleType = vehicle.isSpecial() ? "Special" : "Regular";
                             if (vehicle.isSpecial()) {
                                 specialCount++;
                             } else {
                                 regularCount++;
                             }
+                            
+                            cout << "  " << left << setw(15) << vehicle.getLicense() 
+                                 << "  " << setw(15) << vehicle.getPhone()
+                                 << "  " << setw(10) << vehicleType
+                                 << "  " << setw(8) << fixed << setprecision(0.5) << vehicle.getLength() << "m"
+                                 << "  " << setw(8) << fixed << setprecision(0.5) << vehicle.getHeight() << "m\n";
                         }
-                        cout << "Total Vehicles: " << vehicles.size() << " (" 
+                        cout << "\nTotal Vehicles: " << vehicles.size() << " (" 
                              << specialCount << " Special, " << regularCount << " Regular)\n";
                         cout << "Enter a license plate number to edit a specific vehicle.\n";
                     } else {
@@ -683,12 +694,9 @@ namespace UI {
 
 // Display sailing report
 void showSailingReport() {
-    displayHeader("Sailing Report");
-    
-    // Call the existing sailing report function
+    // Call the existing sailing report function (it handles its own header)
     Sailing::displayReport();
     
-    displayFooter();
     pauseForUser();
 }
 
@@ -707,23 +715,26 @@ void showSailingReport() {
                 if (reservations.empty()) {
                     cout << "  No reservations found for this sailing.\n\n";
                 } else {
-                    cout << "  License Plate    Phone Number     Status\n";
-                    cout << "  ---------------  ---------------  ----------\n";
+                    cout << "  License Plate    Phone Number     Type        Status\n";
+                    cout << "  ---------------  ---------------  ----------  ----------\n";
                     
                     FileIOforVehicle vehicleIO;
                     bool vehicleIOOpen = vehicleIO.open();
                     
                     for (const auto& res : reservations) {
                         string phoneNumber = "N/A";
+                        string vehicleType = "Unknown";
                         
-                        // Get vehicle details for phone number
+                        // Get vehicle details for phone number and type
                         if (vehicleIOOpen && vehicleIO.exists(res.licensePlate)) {
                             Vehicle vehicle = vehicleIO.getVehicle(res.licensePlate);
                             phoneNumber = vehicle.getPhone();
+                            vehicleType = vehicle.isSpecial() ? "Special" : "Regular";
                         }
                         
                         cout << "  " << left << setw(15) << res.licensePlate 
                              << "  " << setw(15) << phoneNumber
+                             << "  " << setw(10) << vehicleType
                              << "  " << (res.onboard ? "On Board" : "Reserved") << "\n";
                     }
                     
@@ -745,19 +756,22 @@ void showSailingReport() {
                 // Handle EOF - exit menu
                 return;
             }
-            displayFooter();
             
             if (input == "0" || input == "Cancel" || input == "cancel") {
+                displayFooter();
                 return;
             } else if (input == "1") {
+                displayFooter();
                 if (addNewReservation(sailingID)) {
                     cout << "Reservation Successfully Added. Returning to the main menu.\n";
                     pauseForUser();
                 }
             } else if (input.empty()) {
+                displayFooter();
                 // Handle empty input - just continue to show menu again
                 continue;
             } else if (isValidLicensePlate(input)) {
+                displayFooter();
                 // Check if this license plate has a reservation for this sailing
                 vector<ReservationRecord> reservations = getAllOnSailing(sailingID);
                 bool found = false;
@@ -774,6 +788,7 @@ void showSailingReport() {
                     pauseForUser();
                 }
             } else {
+                displayFooter();
                 cout << "Invalid input. Please enter 0, 1, or a valid license plate.\n";
                 pauseForUser();
             }

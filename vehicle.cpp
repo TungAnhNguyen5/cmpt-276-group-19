@@ -30,6 +30,10 @@ std::string Vehicle::getPhone() const {
     return std::string(phone);
 }
 
+std::string Vehicle::getLicense() const {
+    return std::string(licence);
+}
+
 
 //--------------------------------------------------
 // Static FileIO instance for vehicle persistence
@@ -373,11 +377,12 @@ bool editVehicleFromUI(const string& licencePlate) {
     cout << "[2] Edit Phone Number\n";
     cout << "[3] Edit Length\n";
     cout << "[4] Edit Height\n";
-    cout << "[0] Cancel\n\n";
+    cout << "[0] Cancel\n";
+    cout << "[9] Delete Vehicle\n\n";
     cout << "Enter your choice: ";
     
     int choice;
-    if (!(cin >> choice) || choice < 0 || choice > 4) {
+    if (!(cin >> choice) || choice < 0 || choice > 9 || (choice > 4 && choice != 9)) {
         cout << "Invalid choice. Operation cancelled.\n";
         cin.clear();
         cin.ignore();
@@ -500,6 +505,32 @@ bool editVehicleFromUI(const string& licencePlate) {
         case 0:
             cout << "Operation cancelled.\n";
             return false;
+        case 9: {
+            cout << "\nDelete Vehicle:\n";
+            cout << "Are you sure you want to delete the vehicle with license plate " << licencePlate << "?\n";
+            cout << "This action cannot be undone.\n";
+            cout << "Type 'YES' to confirm deletion or anything else to cancel: ";
+            
+            string confirmation;
+            getline(cin, confirmation);
+            
+            if (confirmation == "YES") {
+                if (!vehicleFileIO.open()) {
+                    cout << "Error: Unable to access vehicle database.\n";
+                    return false;
+                }
+                
+                if (vehicleFileIO.deleteVehicle(licencePlate)) {
+                    cout << "Vehicle successfully deleted.\n";
+                } else {
+                    cout << "Error: Failed to delete vehicle.\n";
+                }
+                vehicleFileIO.close();
+            } else {
+                cout << "Deletion cancelled.\n";
+            }
+            break;
+        }
     }
     
     cout << "==============================================================\n";

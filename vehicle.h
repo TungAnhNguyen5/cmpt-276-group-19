@@ -55,6 +55,9 @@ public:
     );
     std::string getPhone() const;
     
+    // Returns this Vehicle's license plate.
+    std::string getLicense() const;
+    
     // Cleans up resources (if any).
     void shutdown();
 
