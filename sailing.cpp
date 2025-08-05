@@ -201,7 +201,11 @@ void Sailing::editSailing()
         cin >> input;
         if (cin.fail() || input < CANCEL_OPTION || input > DELETE_OPTION)
         {
-            cout << "Please enter a valid option: ";
+            cout << "Please enter a valid option.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            UI::displayFooter();
+            continue; // Go back to the beginning of the loop
         }
         else
         {
@@ -317,7 +321,12 @@ void Sailing::editSailing()
             // opens manage reservations for this sailing, requires reservation class
             case RESERVATIONS_OPTION:
             {
+                // Clear the input buffer before calling manage reservations
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 UI::manageReservationsForSailing(s.sailingID);
+                // Clear the input buffer after returning from manage reservations
+                cin.clear();
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 break;
             }
             case DELETE_OPTION:

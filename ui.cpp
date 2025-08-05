@@ -184,6 +184,7 @@ namespace UI {
             } else {
                 // Assume it's a sailing ID for editing
                 editSailing(input.c_str());
+                pauseForUser();
             }
         }
     }
