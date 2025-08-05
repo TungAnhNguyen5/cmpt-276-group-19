@@ -121,10 +121,10 @@ void Sailing::editSailing()
         };
 
         string sid = s.sailingID;
+        UI::displayHeader("Edit Sailing");
         // for loop to print the option select in order
         for (int i = 1; i <= NUM_OF_OPTIONS; i++)
-        {
-            UI::displayHeader("Edit Sailing");
+        {            
             switch (i)
             {
             case DEP_TERM:
