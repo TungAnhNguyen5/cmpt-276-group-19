@@ -421,7 +421,7 @@ namespace UI
                 displayHeader("Add Reservation");
                 cout << "License Plate: " << license << "\n";
                 cout << "Phone Number: " << phone << "\n\n";
-                cout << "[0] Cancel\n";
+                cout << "[0] Cancel\n\n";
                 cout << "Format: Height in meters (e.g., 2.5, 3.0, 4.2)\n";
                 heightStr = getStringInput("Enter an option or vehicle height: ", true);
                 displayFooter();
@@ -443,7 +443,7 @@ namespace UI
                 cout << "License Plate: " << license << "\n";
                 cout << "Phone Number: " << phone << "\n";
                 cout << "Vehicle Height: " << fixed << setprecision(1) << height << "\n\n";
-                cout << "[0] Cancel\n";
+                cout << "[0] Cancel\n\n";
                 cout << "Format: Length in meters (e.g., 5.5, 12.0, 18.5)\n";
                 lengthStr = getStringInput("Enter an option or vehicle length: ", true);
                 displayFooter();
@@ -520,27 +520,35 @@ namespace UI
         {
             cout << "Regular Vehicle\n\n"; // fallback in case of error
         }
-
+    while (true)
+    {
         cout << "[0] Cancel\n[9] Delete Reservation\n\n";
         cout << "Enter an option: ";
-
         int choice = getValidIntInput(0, 9);
         displayFooter();
 
-        if (choice == 9)
+        if (choice == 0)
+        {
+            cout << "No changes made. Returning to the previous menu.\n";
+            break;
+        }
+        else if (choice == 9)
         {
             if (deleteReservation(licensePlate, sailingID))
-                cout << "Reservation Successfully Deleted. Returning to the main menu.\n";
+                cout << "Reservation Successfully Deleted.\nReturning to the previous menu.\n";
             else
                 cout << "Error: Could not delete reservation.\n";
+            break;
         }
         else
         {
-            cout << "No changes made. Returning to the main menu.\n";
+            cout << "Invalid option. Please enter 0 or 9.\n";
+            pauseForUser(); // optional: add pause between retries
         }
-        displayFooter();
     }
 
+    displayFooter();
+}
     void checkInProcess()
 {
     displayHeader("Manage Reservations");
@@ -563,7 +571,7 @@ namespace UI
     }
 
     if (!hasValid) {
-        cout << "No reservations found for this sailing, or all are already checked-in.\n";
+        cout << "No reservations found for this sailing, \nor all are already checked-in.\n";
         pauseForUser();
         return;
     }
@@ -598,7 +606,7 @@ namespace UI
 
     vehicleIO.close();
 
-    cout << "\n[0] Cancel\n[1] New Reservation\n\n";
+    cout << "\n[0] Cancel\n\n";
     string license = getStringInput("Enter an option or license plate: ");
     if (license == "CANCEL")
         return;
@@ -614,7 +622,7 @@ namespace UI
     }
 
     if (!matchFound) {
-        cout << "License plate not found or already checked-in. Returning to the main menu.\n";
+        cout << "License plate not found or already checked-in. \nReturning to the previous menu.\n";
         pauseForUser();
         return;
     }
@@ -661,11 +669,11 @@ namespace UI
         if (fare < 0)
             cout << "Reservation not found. Check-in failed.\n";
         else
-            cout << "Customer successfully checked-in. Fare: $" << fixed << setprecision(2) << fare << ".\nReturning to the main menu.\n";
+            cout << "Customer successfully checked-in. Fare: $" << fixed << setprecision(2) << fare << ".\nReturning to the previous menu.\n";
         break;
     }
     default:
-        cout << "No changes made. Returning to the main menu.\n";
+        cout << "No changes made. Returning to the previous menu.\n";
     }
 
     displayFooter();
@@ -737,7 +745,7 @@ namespace UI
             {
                 if (addNewReservation(sailingID))
                 {
-                    cout << "Reservation Successfully Added. Returning to the main menu.\n";
+                    cout << "Reservation Successfully Added. Returning to the previous menu.\n";
                     pauseForUser();
                 }
             }
