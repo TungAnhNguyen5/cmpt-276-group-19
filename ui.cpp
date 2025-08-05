@@ -541,7 +541,7 @@ namespace UI
         displayFooter();
     }
 
-void checkInProcess()
+    void checkInProcess()
 {
     displayHeader("Manage Reservations");
     cout << "[0] Cancel\n\n";
@@ -552,6 +552,22 @@ void checkInProcess()
     displayFooter();
 
     vector<ReservationRecord> records = getAllOnSailing(sailingID);
+
+    // Check if any non-checked-in reservations exist
+    bool hasValid = false;
+    for (const auto &r : records) {
+        if (!r.onboard) {
+            hasValid = true;
+            break;
+        }
+    }
+
+    if (!hasValid) {
+        cout << "No reservations found for this sailing, or all are already checked-in.\n";
+        pauseForUser();
+        return;
+    }
+
     displayHeader("Manage Reservation");
 
     FileIOforVehicle vehicleIO;
@@ -564,14 +580,17 @@ void checkInProcess()
             string phone = "Unknown";
             string type = "Rg Vehicle";
 
-            try {
-                if (vehicleIO.exists(r.licensePlate)) {
+            try
+            {
+                if (vehicleIO.exists(r.licensePlate))
+                {
                     Vehicle v = vehicleIO.getVehicle(r.licensePlate);
                     phone = v.getPhone();
                     if (v.isSpecial())
                         type = "Sp Vehicle";
                 }
-            } catch (...) {}
+            }
+            catch (...) {}
 
             cout << r.licensePlate << " - " << phone << " - " << type << "\n";
         }
@@ -585,23 +604,49 @@ void checkInProcess()
         return;
     displayFooter();
 
+    // Ensure license is part of an existing non-onboard reservation
+    bool matchFound = false;
+    for (const auto &r : records) {
+        if (r.licensePlate == license && !r.onboard) {
+            matchFound = true;
+            break;
+        }
+    }
+
+    if (!matchFound) {
+        cout << "License plate not found or already checked-in. Returning to the main menu.\n";
+        pauseForUser();
+        return;
+    }
+
     displayHeader("Check-In");
     cout << "Sailing ID: " << sailingID << "\n";
     cout << "License Plate: " << license << "\n";
 
-    try {
-        if (vehicleIO.open() && vehicleIO.exists(license)) {
+    bool isSpecial = false;
+    float height = 0.0f, length = 0.0f;
+
+    try
+    {
+        if (vehicleIO.open() && vehicleIO.exists(license))
+        {
             Vehicle v = vehicleIO.getVehicle(license);
-            cout << (v.isSpecial() ? "Special Vehicle" : "Regular Vehicle") << "\n\n";
+            isSpecial = v.isSpecial();
+            height = v.getHeight();
+            length = v.getLength();
+            cout << (isSpecial ? "Special Vehicle" : "Regular Vehicle") << "\n\n";
             vehicleIO.close();
-        } else {
+        }
+        else {
             cout << "Regular Vehicle\n\n"; // fallback
         }
-    } catch (...) {
+    }
+    catch (...)
+    {
         cout << "Regular Vehicle\n\n"; // fallback
     }
 
-    cout << "[0] Cancel\n[1] Confirm Check-in\n[9] Delete Reservation\n\n";
+    cout << "[0] Cancel\n[1] Confirm Check-in\n\n";
     cout << "Enter a line number: ";
 
     int choice = getValidIntInput(0, 9);
@@ -611,19 +656,14 @@ void checkInProcess()
     {
     case 1:
     {
-        float fare = checkIn(sailingID, license, false, 0.0f, 0.0f);
+        float fare = checkIn(sailingID, license, isSpecial, height, length);
+
         if (fare < 0)
             cout << "Reservation not found. Check-in failed.\n";
         else
-            cout << "Customer successfully checked-in. Fare: $" << fixed << setprecision(2) << fare << "\n";
+            cout << "Customer successfully checked-in. Fare: $" << fixed << setprecision(2) << fare << ".\nReturning to the main menu.\n";
         break;
     }
-    case 9:
-        if (deleteReservation(license, sailingID))
-            cout << "Reservation Successfully Deleted. Returning to the main menu.\n";
-        else
-            cout << "Error deleting reservation.\n";
-        break;
     default:
         cout << "No changes made. Returning to the main menu.\n";
     }
@@ -671,9 +711,6 @@ void checkInProcess()
                     catch (...)
                     {
                     }
-
-                    if (r.onboard)
-                        type = "Checked-In";
 
                     cout << r.licensePlate << " - " << phone << " - " << type << "\n";
                 }
