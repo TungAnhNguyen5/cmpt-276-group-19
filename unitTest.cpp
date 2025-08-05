@@ -1,5 +1,3 @@
-// FILE: unitTest.cpp
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #4)
 // TEAM: Group 19
 // DATE: 2025/07/24
