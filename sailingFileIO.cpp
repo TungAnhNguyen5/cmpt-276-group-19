@@ -119,10 +119,22 @@ Sailing *sailingFileIO::getNextFive()
 {
     Sailing *fiveSailings = new Sailing[5];
     
+    // Initialize all sailings to empty state
+    for (int i = 0; i < 5; i++) {
+        // Create an empty sailing with null-terminated sailingID
+        Sailing emptySailing;
+        // Ensure the sailingID is properly null-terminated to indicate empty
+        memset(&emptySailing, 0, sizeof(Sailing));
+        fiveSailings[i] = emptySailing;
+    }
+    
     SailingRecord record;
     for (int i = 0; i < 5; i++) {
         if (file.read(reinterpret_cast<char*>(&record), sizeof(SailingRecord))) {
             fiveSailings[i] = binaryRecordToSailing(record);
+        } else {
+            // If we can't read more records, break early
+            break;
         }
     }
     
