@@ -1,14 +1,12 @@
-// FILE: ReservationFileIO.h
-//************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #4)
+// PROJECT: CMPT 276 – Ferry Reservation Software System //(Assignment #4)
 // TEAM: Group 19
 // DATE: 25/07/24
 //************************************************************
 // PURPOSE:
-//   Declares the interface for persistent storage of reservations
+//   Declares the interface for persistent storage of //reservations
 //   using fixed-length binary random-access I/O.
 //   This module provides functionality for reading,
-//   writing, deleting, and scanning reservation records stored in
+//   writing, deleting, and scanning reservation records stored //in
 //   a binary file.
 //************************************************************
 // USAGE:
@@ -21,6 +19,8 @@
 //          - Initial interface for I/O abstraction.
 // Rev. 2 - 2025/07/24 - Danny Choi
 //          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Danny Choi
+//          - Fully debugged final release version.
 //************************************************************
 // in:  Represents input parameter
 // out: Represents output parameter
@@ -40,9 +40,12 @@
 //--------------------------------------------------
 struct ReservationRecord
 {
-    char licensePlate[LICENSE_PLATE_MAX]; // Vehicle license plate (max 10 characters)
-    char sailingID[SAILING_ID_MAX];       // Sailing ID (max 9 characters)
-    bool onboard;                         // True if already checked in
+    char licensePlate[LICENSE_PLATE_MAX]; 
+    // Vehicle license plate (max 10 characters)
+    char sailingID[SAILING_ID_MAX];       
+    // Sailing ID (max 9 characters)
+    bool onboard;                         
+    // True if already checked in
 };
 
 //--------------------------------------------------

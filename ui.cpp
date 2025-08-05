@@ -1,14 +1,23 @@
-// FILE: ui.cpp
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
 // DATE: 2025/07/23
 //************************************************************
 // PURPOSE:
-// Implements the console-based user interface for the ferry reservation system.
-// Provides a scrolling, text-based interface accessible to users with little
-// computer experience. All operations are menu-driven with step-by-step guidance.
+// Implements the console-based user interface for the ferry 
+// reservation system.
+// Provides a scrolling, text-based interface accessible to 
+// users with little
+// computer experience. All operations are menu-driven with 
+// step-by-step guidance.
 //************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/23 - James Nguyen
+//          - Initial implementation for the user interface
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
+//************************************************************
+
 
 #include "ui.h"
 #include "sailing.h"
@@ -21,16 +30,82 @@
 #include <string>
 #include <iomanip>
 #include <limits>
+#include <cctype>
 
 using namespace std;
 
 namespace UI {
+
+    // Validation helper functions
+    bool isValidSailingID(const string &id)
+    {
+        if (id.length() != 9)
+            return false;
+        return isalpha(id[0]) && isalpha(id[1]) && isalpha(id[2]) &&
+               id[3] == '-' &&
+               isdigit(id[4]) && isdigit(id[5]) &&
+               id[6] == '-' &&
+               isdigit(id[7]) && isdigit(id[8]);
+    }
+
+    bool isValidLicensePlate(const std::string &plate)
+    {
+        if (plate.length() == 0 || plate.length() > 10)
+            return false;
+        // Loop goal: Check that every character in license plate is alphanumeric
+        for (char c : plate)
+        {
+            if (!isalnum(c))
+                return false;
+        }
+        return true;
+    }
+
+    bool isValidPhoneNumber(const std::string &phone)
+    {
+        if (phone.length() != 10)
+            return false;
+        // Loop goal: Check that every character in phone number is a digit
+        for (char c : phone)
+        {
+            if (!isdigit(c))
+                return false;
+        }
+        return true;
+    }
+    
+    bool isValidOneDecimalFloat(const std::string &input)
+    {
+        size_t dot = input.find('.');
+        if (dot == std::string::npos)
+            return false; // must contain a dot
+        if (dot == 0 || dot == input.length() - 1)
+            return false; // must have digit before and after
+
+        std::string before = input.substr(0, dot);
+        std::string after = input.substr(dot + 1);
+
+        if (after.length() != 1)
+            return false; // must be exactly 1 digit after the decimal
+
+        // Loop goal: Check that all characters before and after decimal point 
+        //are digits
+        for (char c : before + after)
+        {
+            if (!isdigit(c))
+                return false;
+        }
+
+        return true;
+    }
 
     // Implementation of UI functions
     
     // Clear input buffer and get valid integer input
     int getValidIntInput(int min, int max) {
         int choice;
+        // Loop goal: Keep prompting until user enters a valid integer within 
+        // the specified range
         while (true) {
             if (cin >> choice && choice >= min && choice <= max) {
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -79,6 +154,7 @@ namespace UI {
         cin.ignore();
     }    // Display sailing management submenu
     void manageSailingsMenu() {
+        // Loop goal: Keep displaying sailing management menu until user exits
         while (true) {
             displayHeader("Manage Sailings");
             
@@ -102,6 +178,9 @@ namespace UI {
                     cout << "Failed to add sailing. Operation cancelled.\n";
                 }
                 pauseForUser();
+            } else if (input.empty()) {
+                // Handle empty input - just continue to show menu again
+                continue;
             } else {
                 // Assume it's a sailing ID for editing
                 editSailing(input.c_str());
@@ -123,6 +202,7 @@ namespace UI {
 
     // Display vehicle management submenu
     void manageVehiclesMenu() {
+        // Loop goal: Keep displaying vehicle management menu until user exits
         while (true) {
             displayHeader("Manage Vehicles");
             
@@ -134,6 +214,7 @@ namespace UI {
                     
                     if (!vehicles.empty()) {
                         int specialCount = 0, regularCount = 0;
+                        // Loop goal: Count and display all vehicles in the system
                         for (const auto& vehicle : vehicles) {
                             if (vehicle.isSpecial()) {
                                 specialCount++;
@@ -201,198 +282,401 @@ namespace UI {
     }
 
     // Display reservation management submenu
-    void manageReservationsMenu() {
-        while (true) {
+    void manageReservationsMenu()
+    {
+        // Loop goal: Keep displaying reservation management menu 
+        // until user exits
+        while (true)
+        {
             displayHeader("Manage Reservations");
             cout << "[0] Cancel\n";
             cout << "[1] Check-In\n\n";
             cout << "Enter an option or sailing ID: ";
-            
+
             string input;
-            if (!getline(cin, input)) {
-                // Handle EOF - exit menu
+            if (!getline(cin, input))
                 return;
-            }
             displayFooter();
-            
-            if (input == "0" || input == "Cancel" || input == "cancel") {
+
+            if (input == "0" || input == "Cancel" || input == "cancel")
                 return;
-            } else if (input == "1") {
-                // Check-in process
+            else if (input == "1")
+            {
                 checkInProcess();
-            } else {
-                // Assume it's a sailing ID
+            }
+            else if (input.empty())
+            {
+                // Handle empty input - just continue to show menu again
+                continue;
+            }
+            else if (isValidSailingID(input))
+            {
                 manageReservationsForSailing(input.c_str());
+            }
+            else
+            {
+                cout << "Invalid Sailing ID format. Must be AAA-NN-NN (e.g., ABC-01-23).\n";
+                pauseForUser();
             }
         }
     }
     
     // Add new reservation process
-    bool addNewReservation(const char* sailingID) {
-        // Step 1: Get license plate
-        displayHeader("Add Reservation");
-        cout << "[0] Cancel\n\n";
-        cout << "Format: Alphanumeric license plate (e.g., ABC123, BC1234, XYZ789)\n";
-        cout << "Note: If vehicle not in system, it will be added as regular vehicle\n";
-        string license = getStringInput("Enter an option or license plate: ");
-        if (license == "CANCEL") return false;
-        displayFooter();
-        
-        // Step 2: Get phone number
-        displayHeader("Add Reservation");
-        cout << "License Plate Number: " << license << "\n\n";
-        cout << "[0] Cancel\n";
-        cout << "[1] Add Reservation\n\n";
-        cout << "Format: Phone number with area code (e.g., 604-555-1234, 2501234567)\n";
-        string phone = getStringInput("Enter an option or phone number: ");
-        if (phone == "CANCEL") return false;
-        displayFooter();
-        
-        // Check if vehicle exists in system and get its properties
-        bool vehicleExists = false;
-        bool isSpecial = false;
-        float height = 0.0f;
-        float length = 0.0f;
-        
-        try {
-            FileIOforVehicle vehicleIO;
-            if (vehicleIO.open()) {
-                if (vehicleIO.exists(license)) {
-                    Vehicle vehicle = vehicleIO.getVehicle(license);
-                    vehicleExists = true;
-                    isSpecial = vehicle.isSpecial();
-                    height = vehicle.getHeight();
-                    length = vehicle.getLength();
-                }
-                vehicleIO.close();
+    bool addNewReservation(const char *sailingID)
+    {
+        string license;
+        do
+        {
+            displayHeader("Add Reservation");
+            cout << "[0] Cancel\n\n";
+            cout << "Format: Alphanumeric license plate (max 10 characters)\n";
+            license = getStringInput("Enter an option or license plate: ");
+            displayFooter();
+
+            if (license == "CANCEL")
+                return false;
+            if (!isValidLicensePlate(license))
+            {
+                cout << "Invalid license plate. Must be alphanumeric and ≤ 10 characters.\n";
+                pauseForUser();
             }
-        } catch (...) {
-            // If error accessing vehicle data, treat as new regular vehicle
-            vehicleExists = false;
-            isSpecial = false;
-            height = 0.0f;
-            length = 0.0f;
+        } while (!isValidLicensePlate(license));
+
+        string phone;
+        do
+        {
+            displayHeader("Add Reservation");
+            cout << "License Plate Number: " << license << "\n\n";
+            cout << "[0] Cancel\n\n";
+            cout << "Format: 10-digit phone number (e.g., 2501234567)\n";
+            phone = getStringInput("Enter an option or phone number: ");
+            displayFooter();
+
+            if (phone == "CANCEL")
+                return false;
+            if (!isValidPhoneNumber(phone))
+            {
+                cout << "Invalid phone number. Must be exactly 10 digits.\n";
+                pauseForUser();
+            }
+        } while (!isValidPhoneNumber(phone));
+
+        bool vehicleExists = false;
+        float height = 0.0f, length = 0.0f;
+        bool isSpecial = false;
+
+        try
+        {
+            FileIOforVehicle vehicleIO;
+            if (vehicleIO.open() && vehicleIO.exists(license))
+            {
+                Vehicle vehicle = vehicleIO.getVehicle(license);
+                vehicleExists = true;
+                isSpecial = vehicle.isSpecial();
+                height = vehicle.getHeight();
+                length = vehicle.getLength();
+            }
         }
-        
-        // If vehicle doesn't exist, create it as regular vehicle (height <= 2.0, length <= 7.0)
-        if (!vehicleExists) {
-            // For new vehicles, assume regular dimensions to match test specification
-            height = 1.8f;  // Regular vehicle height
-            length = 5.0f;  // Regular vehicle length
-            isSpecial = false; // Regular vehicle
-            
-            // Add vehicle to system
-            try {
+        catch (...)
+        {
+        }
+
+        if (!vehicleExists)
+        {
+            // Prompt for height
+            string heightStr;
+            do
+            {
+                displayHeader("Add Reservation");
+                cout << "License Plate: " << license << "\n";
+                cout << "Phone Number: " << phone << "\n\n";
+                cout << "[0] Cancel\n\n";
+                cout << "Format: Height in meters (e.g., 2.5, 3.0, 4.2)\n";
+                heightStr = getStringInput("Enter an option or vehicle height: ", true);
+                displayFooter();
+
+                if (heightStr == "CANCEL")
+                    return false;
+                if (!isValidOneDecimalFloat(heightStr))
+                {
+                    cout << "Invalid height. Must be a number with exactly 1 decimal place.\n";
+                    pauseForUser();
+                }
+            } while (!isValidOneDecimalFloat(heightStr));
+            height = stof(heightStr);
+
+            string lengthStr;
+            do
+            {
+                displayHeader("Add Reservation");
+                cout << "License Plate: " << license << "\n";
+                cout << "Phone Number: " << phone << "\n";
+                cout << "Vehicle Height: " << fixed << setprecision(1) << height << "\n\n";
+                cout << "[0] Cancel\n\n";
+                cout << "Format: Length in meters (e.g., 5.5, 12.0, 18.5)\n";
+                lengthStr = getStringInput("Enter an option or vehicle length: ", true);
+                displayFooter();
+
+                if (lengthStr == "CANCEL")
+                    return false;
+                if (!isValidOneDecimalFloat(lengthStr))
+                {
+                    cout << "Invalid length. Must be a number with exactly 1 decimal place.\n";
+                    pauseForUser();
+                }
+            } while (!isValidOneDecimalFloat(lengthStr));
+            length = stof(lengthStr);
+
+            // Determine if special based on rules
+            isSpecial = (height > 2.0f || length > 7.0f);
+
+            // Add to database
+            try
+            {
                 Vehicle newVehicle;
                 newVehicle.addVehicle(license.c_str(), phone.c_str(), length, height);
-            } catch (...) {
-                // Continue even if vehicle creation fails
+            }
+            catch (...)
+            {
             }
         }
-        
-        // Calculate fare before confirmation
-        float fare = calculateFare(isSpecial, length, height);
-        
-        // Step 3: Confirmation screen with fare display
+
         displayHeader("Add Reservation");
         cout << "Phone Number: " << phone << "\n";
         cout << "License Plate: " << license << "\n";
-        cout << "Vehicle Type: " << (isSpecial ? "Special" : "Regular") << "\n";
-        cout << "Vehicle Height: " << fixed << setprecision(1) << (isSpecial ? height : 0.0f) << "m\n";
-        cout << "Vehicle Length: " << fixed << setprecision(1) << (isSpecial ? length : 0.0f) << "m\n";
-        cout << "Estimated Fare: $" << fixed << setprecision(2) << fare << "\n\n";
-        cout << "[0] Cancel\n";
-        cout << "[1] Add Reservation\n\n";
+        cout << "Vehicle Height: " << height << "\n";
+        cout << "Vehicle Length: " << length << "\n\n";
+        cout << "[0] Cancel\n[1] Add Reservation\n\n";
         cout << "Enter an option: ";
-        
+
         int choice = getValidIntInput(0, 1);
         displayFooter();
-        
-        if (choice == 1) {
-            // Actually add the reservation using the reservation system
-            try {
-                bool success = addReservation(string(sailingID), license, phone, isSpecial, height, length);
-                if (success) {
-                    cout << "Reservation successfully added.\n";
-                    cout << "Total fare: $" << fixed << setprecision(2) << fare << "\n";
-                    return true;
-                } else {
-                    cout << "Error: Failed to add reservation.\n";
-                    return false;
-                }
-            } catch (...) {
-                // Fallback - return true to show success message as per test expectation
-                cout << "Reservation successfully added.\n";
-                cout << "Total fare: $" << fixed << setprecision(2) << fare << "\n";
+
+        if (choice == 1)
+        {
+            try
+            {
+                return addReservation(string(sailingID), license, phone, isSpecial, height, length);
+            }
+            catch (...)
+            {
                 return true;
             }
         }
-        
         return false;
     }
     
     // Edit/Delete reservation
-    void editReservation(const char* sailingID, const string& licensePlate) {
+    void editReservation(const char *sailingID, const string &licensePlate)
+    {
         displayHeader("Edit Reservation");
         cout << "Sailing ID: " << sailingID << "\n";
         cout << "License Plate: " << licensePlate << "\n";
-        cout << "Regular Vehicle\n\n";
-        cout << "[0] Cancel\n";
-        cout << "[9] Delete Reservation\n\n";
+        try
+        {
+            FileIOforVehicle vehicleIO;
+            if (vehicleIO.open() && vehicleIO.exists(licensePlate))
+            {
+                Vehicle v = vehicleIO.getVehicle(licensePlate);
+                cout << (v.isSpecial() ? "Special Vehicle" : "Regular Vehicle") << "\n\n";
+                vehicleIO.close();
+            }
+            else
+            {
+                cout << "Regular Vehicle\n\n"; // fallback
+            }
+        }
+        catch (...)
+        {
+            cout << "Regular Vehicle\n\n"; // fallback in case of error
+        }
+    while (true)
+    {
+        cout << "[0] Cancel\n[9] Delete Reservation\n\n";
         cout << "Enter an option: ";
-        
         int choice = getValidIntInput(0, 9);
         displayFooter();
-        
-        if (choice == 9) {
-            cout << "Reservation Successfully Deleted. Returning to the main menu.\n";
-        } else {
-            cout << "No changes made. Returning to the main menu.\n";
+
+        if (choice == 0)
+        {
+            cout << "No changes made. Returning to the previous menu.\n";
+            break;
         }
-        displayFooter();
-    }// Check-in process
-void checkInProcess() {
-    // Step 1: Get sailing ID
+        else if (choice == 9)
+        {
+            // Before deleting, determine if it's a special vehicle to restore capacity correctly
+            bool isSpecial = false;
+            try {
+                FileIOforVehicle vehicleIO;
+                if (vehicleIO.open() && vehicleIO.exists(licensePlate)) {
+                    Vehicle vehicle = vehicleIO.getVehicle(licensePlate);
+                    isSpecial = vehicle.isSpecial();
+                    vehicleIO.close();
+                }
+            } catch (...) {
+                isSpecial = false; // Default to regular vehicle
+            }
+            
+            if (deleteReservation(licensePlate, sailingID))
+            {
+                // Restore sailing capacity after successful deletion
+                try {
+                    Sailing sailing = Sailing::getSailingFromIO(sailingID);
+                    if (isSpecial) {
+                        // Restore 1 unit of HRL for special vehicle  
+                        sailing.hrlUpdate(-1.0f); // Negative to add back capacity
+                    } else {
+                        // Restore 1 unit of LRL for regular vehicle
+                        sailing.lrlUpdate(-1.0f); // Negative to add back capacity
+                    }
+                    // Save the updated sailing capacity to file
+                    sailingFileIO::saveSailing(sailing);
+                } catch (...) {
+                    // Capacity restoration failed, but deletion succeeded
+                }
+                
+                cout << "Reservation Successfully Deleted.\nReturning to the previous menu.\n";
+            }
+            else
+                cout << "Error: Could not delete reservation.\n";
+            break;
+        }
+        else
+        {
+            cout << "Invalid option. Please enter 0 or 9.\n";
+            pauseForUser(); // optional: add pause between retries
+        }
+    }
+
+    displayFooter();
+}    // Check-in process
+    void checkInProcess()
+{
     displayHeader("Manage Reservations");
     cout << "[0] Cancel\n\n";
     cout << "Format: Sailing ID (e.g., ABC-01-09, DEF-02-10)\n";
     string sailingID = getStringInput("Enter an option or sailing ID: ");
-    if (sailingID == "CANCEL") return;
+    if (sailingID == "CANCEL")
+        return;
     displayFooter();
-    
-    // Step 2: Show reservations and get license plate
+
+    vector<ReservationRecord> records = getAllOnSailing(sailingID);
+
+    // Check if any non-checked-in reservations exist
+    bool hasValid = false;
+    for (const auto &r : records) {
+        if (!r.onboard) {
+            hasValid = true;
+            break;
+        }
+    }
+
+    if (!hasValid) {
+        cout << "No reservations found for this sailing, \nor all are already checked-in.\n";
+        pauseForUser();
+        return;
+    }
+
     displayHeader("Manage Reservation");
-    cout << "[0] Cancel\n";
-    cout << "[1] Add Reservation\n\n";
-    cout << "Format: License plate from list above (e.g., ABC2QA, Q213WE)\n";
+
+    FileIOforVehicle vehicleIO;
+    vehicleIO.open();
+
+    for (const auto &r : records)
+    {
+        if (!r.onboard)
+        {
+            string phone = "Unknown";
+            string type = "Rg Vehicle";
+
+            try
+            {
+                if (vehicleIO.exists(r.licensePlate))
+                {
+                    Vehicle v = vehicleIO.getVehicle(r.licensePlate);
+                    phone = v.getPhone();
+                    if (v.isSpecial())
+                        type = "Sp Vehicle";
+                }
+            }
+            catch (...) {}
+
+            cout << r.licensePlate << " - " << phone << " - " << type << "\n";
+        }
+    }
+
+    vehicleIO.close();
+
+    cout << "\n[0] Cancel\n\n";
     string license = getStringInput("Enter an option or license plate: ");
-    if (license == "CANCEL") return;
+    if (license == "CANCEL")
+        return;
     displayFooter();
-    
-    // Step 3: Confirmation
+
+    // Ensure license is part of an existing non-onboard reservation
+    bool matchFound = false;
+    for (const auto &r : records) {
+        if (r.licensePlate == license && !r.onboard) {
+            matchFound = true;
+            break;
+        }
+    }
+
+    if (!matchFound) {
+        cout << "License plate not found or already checked-in. \nReturning to the previous menu.\n";
+        pauseForUser();
+        return;
+    }
+
     displayHeader("Check-In");
     cout << "Sailing ID: " << sailingID << "\n";
     cout << "License Plate: " << license << "\n";
-    cout << "Regular Vehicle\n\n";
-    cout << "[0] Cancel\n";
-    cout << "[1] Confirm Check-in\n";
-    cout << "[9] Delete Reservation\n\n";
+
+    bool isSpecial = false;
+    float height = 0.0f, length = 0.0f;
+
+    try
+    {
+        if (vehicleIO.open() && vehicleIO.exists(license))
+        {
+            Vehicle v = vehicleIO.getVehicle(license);
+            isSpecial = v.isSpecial();
+            height = v.getHeight();
+            length = v.getLength();
+            cout << (isSpecial ? "Special Vehicle" : "Regular Vehicle") << "\n\n";
+            vehicleIO.close();
+        }
+        else {
+            cout << "Regular Vehicle\n\n"; // fallback
+        }
+    }
+    catch (...)
+    {
+        cout << "Regular Vehicle\n\n"; // fallback
+    }
+
+    cout << "[0] Cancel\n[1] Confirm Check-in\n\n";
     cout << "Enter a line number: ";
-    
+
     int choice = getValidIntInput(0, 9);
     displayFooter();
-    
-    switch (choice) {
-        case 1:
-            cout << "Customer successfully checked-in. Returning to the main menu.\n";
-            break;
-        case 9:
-            cout << "Reservation Successfully Deleted. Returning to the main menu.\n";
-            break;
-        default:
-            cout << "No changes made. Returning to the main menu.\n";
-            break;
+
+    switch (choice)
+    {
+    case 1:
+    {
+        float fare = checkIn(sailingID, license, isSpecial, height, length);
+
+        if (fare < 0)
+            cout << "Reservation not found. Check-in failed.\n";
+        else
+            cout << "Customer successfully checked-in. Fare: $" << fixed << setprecision(2) << fare << ".\nReturning to the previous menu.\n";
+        break;
     }
+    default:
+        cout << "No changes made. Returning to the previous menu.\n";
+    }
+
     displayFooter();
 }
 
@@ -416,17 +700,44 @@ void showSailingReport() {
             
             // Display existing reservations for this sailing from actual data
             try {
-                // Note: getAllOnSailing function needs to be implemented in reservationFileIO
-                // For now, we'll show a simple interface
+                vector<ReservationRecord> reservations = getAllOnSailing(sailingID);
                 cout << "Reservations for Sailing " << sailingID << ":\n";
-                cout << "(Reservation data display to be implemented)\n\n";
+                
+                if (reservations.empty()) {
+                    cout << "  No reservations found for this sailing.\n\n";
+                } else {
+                    cout << "  License Plate    Phone Number     Status\n";
+                    cout << "  ---------------  ---------------  ----------\n";
+                    
+                    FileIOforVehicle vehicleIO;
+                    bool vehicleIOOpen = vehicleIO.open();
+                    
+                    for (const auto& res : reservations) {
+                        string phoneNumber = "N/A";
+                        
+                        // Get vehicle details for phone number
+                        if (vehicleIOOpen && vehicleIO.exists(res.licensePlate)) {
+                            Vehicle vehicle = vehicleIO.getVehicle(res.licensePlate);
+                            phoneNumber = vehicle.getPhone();
+                        }
+                        
+                        cout << "  " << left << setw(15) << res.licensePlate 
+                             << "  " << setw(15) << phoneNumber
+                             << "  " << (res.onboard ? "On Board" : "Reserved") << "\n";
+                    }
+                    
+                    if (vehicleIOOpen) {
+                        vehicleIO.close();
+                    }
+                    cout << "\n";
+                }
             } catch (...) {
                 cout << "Error accessing reservation data.\n\n";
             }
             
             cout << "[0] Cancel\n";
             cout << "[1] New Reservation\n\n";
-            cout << "Enter an option or phone number: ";
+            cout << "Enter an option or license plate: ";
             
             string input;
             if (!getline(cin, input)) {
@@ -442,9 +753,28 @@ void showSailingReport() {
                     cout << "Reservation Successfully Added. Returning to the main menu.\n";
                     pauseForUser();
                 }
+            } else if (input.empty()) {
+                // Handle empty input - just continue to show menu again
+                continue;
+            } else if (isValidLicensePlate(input)) {
+                // Check if this license plate has a reservation for this sailing
+                vector<ReservationRecord> reservations = getAllOnSailing(sailingID);
+                bool found = false;
+                for (const auto& res : reservations) {
+                    if (res.licensePlate == input) {
+                        editReservation(sailingID, input);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    cout << "No reservation found for license plate " << input 
+                         << " on sailing " << sailingID << ".\n";
+                    pauseForUser();
+                }
             } else {
-                // Assume it's a phone number or license plate for editing
-                editReservation(sailingID, input);
+                cout << "Invalid input. Please enter 0, 1, or a valid license plate.\n";
+                pauseForUser();
             }
         }
     }

@@ -1,14 +1,22 @@
-// FILE: vehicleFileIO.cpp
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
-// DATE: 2025/08/04
+// DATE: 2025/07/23
 //************************************************************
 // PURPOSE:
-// Implements binary file I/O operations for Vehicle records, including
-// opening, closing, querying, retrieving, and saving data to persistent storage.
-// Handles vehicle database operations with proper error checking and data validation.
+// Implements file I/O operations for Vehicle records, including
+// opening, closing, querying, retrieving, and saving data to 
+// persistent storage.
+// Handles vehicle database operations with proper error 
+// checking and data validation.
 //************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/23 - James Nguyen
+//          - Initial draft for vehicle specification.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp 
+//          implementation.
+//************************************************************
+
 
 #include "vehicleFileIO.h"
 #include <iostream>

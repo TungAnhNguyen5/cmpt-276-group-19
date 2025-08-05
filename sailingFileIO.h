@@ -1,3 +1,21 @@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/24
+//************************************************************
+// PURPOSE:
+//   Declares the interface for file I/O operations on Sailing //records,
+//   including opening, closing, reading, writing, and deleting //sailings.
+//   Provides functionality for managing sailing records in a //binary file format.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - Nathan Miller
+//          - Initial sailingFileIO header file.
+// Rev. 2 - 2025/07/24 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
+//          - Fully debugged final release version.
+//************************************************************
+
 #ifndef SAILING_FILE_IO_H
 #define SAILING_FILE_IO_H
 

@@ -1,5 +1,3 @@
-// FILE: UI.h
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
 // DATE: 2025/07/23
@@ -18,12 +16,21 @@
 // REVISION HISTORY:
 // Rev. 1 - 2025/07/09 - James Nguyen
 //          - Initial draft for interface specification.
-// Rev. 2 - 2025/07/23 - Group 19
-//          - Updated for integrated UI with real module integration.
+// Rev. 2 - 2025/07/23 - James Nguyen
+//          - Integrated UI with real module functionality and
+//            added user-friendly prompts and error handling.
+//          - Added helper functions for input validation and
+//            user interaction.
+//          - Updated for integrated UI with real module 
+// integration.
+// Rev. 3 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp 
+// implementation.
 //************************************************************
 // in: Represents input parameter
 // out: Represents output parameter
 //************************************************************
+
 
 #ifndef UI_H
 #define UI_H

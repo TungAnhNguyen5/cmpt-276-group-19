@@ -1,3 +1,22 @@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+//   Declares the interface for managing sailings, including
+//   adding, editing, and retrieving sailing records.
+//   Provides functionality for creating sailings, managing their
+//   attributes, and interfacing with the file I/O system for persistence.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - Nathan Miller
+//          - Initial prototype for sailing header file.
+// Rev. 2 - 2025/07/24 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
+//          - Fully debugged final release version.
+//************************************************************
+
 #ifndef SAILING_H
 #define SAILING_H
 
@@ -37,6 +56,8 @@ private:
     static int addHCLL();
     // helper function to prompt the user to confirm the operation they are doing
     static bool confirm(int confirmInput);
+    // helper function to calculate capacity percentage for sailing reports
+    static float calculateCapacityPercentage(int totalLow, int totalHigh, float remainingLow, float remainingHigh);
 
 public:
     //-----------------------------------------------------------------------------------------

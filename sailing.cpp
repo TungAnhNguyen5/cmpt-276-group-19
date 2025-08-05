@@ -1,18 +1,22 @@
-// FILE: sailing.cpp
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
-// DATE: 2025/08/05
+// DATE: 2025/07/23
 //************************************************************
 // PURPOSE:
-// Implements binary file I/O operations for Sailing records
+//   Implements the Sailing class, which manages sailing records
+//   including creation, editing, and persistence through file //I/O.
+//   Provides functionality for adding, editing, and retrieving //sailings,
+//   as well as handling user input for sailing management.
 //************************************************************
 // REVISION HISTORY:
-// Rev. 1 - 2025/07/24 - Nathan Miller
-//          - Initial .cpp implementation based on header specification.
-// Rev. 2 - 2025/08/05 - Nathan Miller
+// Rev. 1 - 2025/07/09 - Nathan Miller
+//          - Initial interface for sailing class.
+// Rev. 2 - 2025/07/24 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
 //          - Fully debugged final release version.
 //************************************************************
+
 
 #include "sailing.h"
 #include "sailingFileIO.h"
@@ -113,6 +117,7 @@ void Sailing::editSailing()
     }
 
     // runs the editing loop until either confirm, cancel, delete, or manage reservations is chosen
+    // Loop goal: Continue editing sailing details until user chooses to confirm, cancel, delete, or manage reservations
     while (editing)
     {
         // used to keep track of order and options
@@ -138,7 +143,7 @@ void Sailing::editSailing()
         }
         
         UI::displayHeader("Edit Sailing");
-        // for loop to print the option select in order
+        // Loop goal: Display all editing options in order (1 through NUM_OF_OPTIONS)
         for (int i = 1; i <= NUM_OF_OPTIONS; i++)
         {            
             switch (i)
@@ -337,11 +342,12 @@ void Sailing::displayReport()
     const int VESSEL_ID_LENGTH = 25;
     const int LRL_LENGTH = 6;
     const int HRL_LENGTH = 6;
-    const int PERCENT_LENGTH = 4;
+    const int PERCENT_LENGTH = 6;
 
     // resets position in the file so it starts at the beginning every time
     sailingFileIO::reset();
 
+    // Loop goal: Continue displaying sailing reports until user chooses to exit
     while (reportActive)
     {
         UI::displayHeader("Sailing Report");
@@ -353,7 +359,7 @@ void Sailing::displayReport()
         cout << right << setw(LRL_LENGTH) << "LRL" << "   ";
         cout << right << setw(HRL_LENGTH) << "HRL" << "  ";
         cout << right << "FULL %" << "\n";
-        // iterates through the sailing(s) grabbed
+        // Loop goal: Display up to 5 sailing records from the current file position
         for (int i = 0; i < 5; i++)
         {
             if (fiveSailings[i].getSailingID()[0] == '\0')
@@ -367,14 +373,19 @@ void Sailing::displayReport()
             cout << left << setw(VESSEL_ID_LENGTH) << fiveSailings[i].vesselID << "   ";
             cout << right << setw(LRL_LENGTH) << fiveSailings[i].lrl << "   ";
             cout << right << setw(HRL_LENGTH) << fiveSailings[i].hrl << "   ";
-            int percentFull = (1 - ((fiveSailings[i].lrl + fiveSailings[i].hrl) / (fiveSailings[i].lcll + fiveSailings[i].hcll))) * 100;
-            cout << right << setw(PERCENT_LENGTH) << percentFull << "%\n";
+            
+            // Calculate and display capacity percentage
+            float percentFull = calculateCapacityPercentage(fiveSailings[i].lcll, fiveSailings[i].hcll, 
+                                                         fiveSailings[i].lrl, fiveSailings[i].hrl);
+            cout << right << setw(PERCENT_LENGTH) << fixed << setprecision(1) << percentFull << "%";
+            cout << resetiosflags(ios::fixed) << setprecision(6) << "\n"; // Reset formatting
         }
 
         // prompts the user to enter an option, continues until valid input is received
         cout << "\n[0] Cancel\n[5] Show next 5\n\nEnter an option: ";
         int input;
         bool validInput = false;
+        // Loop goal: Keep prompting until user enters a valid option (0 or 5)
         while (!validInput)
         {
             cin >> input;
@@ -478,6 +489,7 @@ string Sailing::addDepTerm()
     bool validEntry = false;
     const int DEP_TERM_LENGTH = 3;
     string depTerm;
+    // Loop goal: Keep prompting until user enters a valid 3-character departure terminal
     while (!validEntry)
     {
         cout << "Format: 3-letter terminal code (e.g., TSA, SWB, HGB)\n";
@@ -505,6 +517,7 @@ string Sailing::addDate()
     bool validEntry = false;
     const int DATE_LENGTH = 2;
     string date;
+    // Loop goal: Keep prompting until user enters a valid 2-digit date (01-28)
     while (!validEntry)
     {
         cout << "Format: 2-digit day (01-28, e.g., 01, 15, 28)\n";
@@ -531,6 +544,7 @@ string Sailing::addTime()
     bool validEntry = false;
     const int TIME_LENGTH = 2;
     string time;
+    // Loop goal: Keep prompting until user enters a valid 2-digit time (00-23)
     while (!validEntry)
     {
         cout << "Format: 2-digit hour in 24-hour format (00-23, e.g., 08, 14, 23)\n";
@@ -557,9 +571,16 @@ string Sailing::addVessel()
     bool validEntry = false;
     const int VESSEL_LENGTH = 25;
     string vessel;
+    // Loop goal: Keep prompting until user enters a valid vessel ID (1-25 characters)
     while (!validEntry)
     {
-        cout << "Format: Vessel name/ID (1-25 characters, e.g., CoastalRunner, Island123)\n";
+        cout << "\nVessel ID/Name:\n";
+        cout << "Format: Vessel name or identifier\n";
+        cout << "Guidelines:\n";
+        cout << "  - 1-25 characters maximum\n";
+        cout << "  - Can be name or alphanumeric ID\n";
+        cout << "  - No spaces (use underscore if needed)\n";
+        cout << "  - Examples: CoastalRunner, Island_Voyager, FERRY123, Vessel_01\n";
         cout << "Enter a vessel ID: ";
 
         cin >> vessel;
@@ -584,9 +605,16 @@ int Sailing::addLCLL()
     int lcll;
     const int LCLL_MAX = 9999;
 
+    // Loop goal: Keep prompting until user enters a valid LCLL value (0-9999)
     while (!validEntry)
     {
-        cout << "Format: Load Car Length Limit in meters (0-9999, e.g., 100, 250, 500)\n";
+        cout << "\nLow Car Length Limit (LCLL):\n";
+        cout << "Format: Maximum length for regular vehicles in meters\n";
+        cout << "Guidelines:\n";
+        cout << "  - Enter as whole number (0-9999)\n";
+        cout << "  - Represents maximum length capacity for regular vehicles\n";
+        cout << "  - Common values: 100, 150, 200, 300, 500\n";
+        cout << "  - Examples: 111 (111 meters), 200 (200 meters)\n";
         cout << "Enter LCLL: ";
         cin >> lcll;
 
@@ -612,9 +640,17 @@ int Sailing::addHCLL()
     int hcll;
     const int HCLL_MAX = 9999;
 
+    // Loop goal: Keep prompting until user enters a valid HCLL value (0-9999)
     while (!validEntry)
     {
-        cout << "Format: High Clearance Lane Limit in meters (0-9999, e.g., 50, 150, 300)\n";
+        cout << "\nHigh Clearance Lane Limit (HCLL):\n";
+        cout << "Format: Maximum length for special vehicles in meters\n";
+        cout << "Guidelines:\n";
+        cout << "  - Enter as whole number (0-9999)\n";
+        cout << "  - Represents maximum length capacity for special/oversized vehicles\n";
+        cout << "  - Usually higher than LCLL\n";
+        cout << "  - Common values: 200, 300, 500, 1000\n";
+        cout << "  - Examples: 222 (222 meters), 300 (300 meters)\n";
         cout << "Enter HCLL: ";
         cin >> hcll;
 
@@ -636,6 +672,7 @@ int Sailing::addHCLL()
 
 bool Sailing::confirm(int confirmOption)
 {
+    // Loop goal: Keep prompting until user enters valid confirmation choice (cancel or confirm)
     while (true)
     {
         int input;
@@ -661,6 +698,21 @@ bool Sailing::confirm(int confirmOption)
     return true;
 }
 
+// Helper function to calculate capacity percentage for sailing reports
+float Sailing::calculateCapacityPercentage(int totalLow, int totalHigh, float remainingLow, float remainingHigh)
+{
+    // Calculate percentage full: (total capacity - remaining capacity) / total capacity * 100
+    double totalCapacity = (double)(totalLow + totalHigh);
+    double remainingCapacity = (double)(remainingLow + remainingHigh);
+    
+    if (totalCapacity <= 0) {
+        return 0.0f; // Avoid division by zero
+    }
+    
+    float percentFull = (float)((totalCapacity - remainingCapacity) / totalCapacity * 100);
+    return percentFull;
+}
+
 void Sailing::createSailing(string line) {
     // Initialize with empty values first
     memset(sailingID, 0, sizeof(sailingID));
@@ -681,6 +733,7 @@ void Sailing::createSailing(string line) {
         string field;
         
         // Split by delimiter
+        // Loop goal: Parse all fields from the line separated by '|' delimiter
         while (getline(ss, field, '|')) {
             fields.push_back(field);
         }

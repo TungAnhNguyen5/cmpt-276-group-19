@@ -1,14 +1,21 @@
-// FILE: vehicle.cpp
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System 
 // TEAM: Group 19
 // DATE: 2025/07/23
 //************************************************************
 // PURPOSE:
-// Implements the Vehicle class interface for managing vehicle records,
+// Implements the Vehicle class interface for managing vehicle // records,
 // including creation, editing, and classification.
-// Handles vehicle data validation and persistence through FileIO.
+// Handles vehicle data validation and persistence through 
+// FileIO.
 //************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - James Nguyen
+//          - Initial implementation for vehicle class.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
+//************************************************************
+
 
 #include "vehicle.h"
 #include "vehicleFileIO.h"
@@ -37,6 +44,7 @@ namespace {
     // Get valid string input with length constraints
     string getValidStringInput(const string& prompt, int maxLength, bool allowCancel = true) {
         string input;
+        // Loop goal: Keep prompting until user provides valid string input within length constraints
         while (true) {
             cout << prompt;
             getline(cin, input);
@@ -57,6 +65,7 @@ namespace {
     // Get valid float input with range validation
     float getValidFloatInput(const string& prompt, float min = 0.1f, float max = 20.0f) {
         float value;
+        // Loop goal: Keep prompting until user provides valid float within specified range
         while (true) {
             cout << prompt;
             if (cin >> value && value >= min && value <= max) {
@@ -80,10 +89,11 @@ namespace {
         cout << "Height: " << fixed << setprecision(1) << height << "m\n";
         cout << "Vehicle Type: " << (isSpecial ? "Special" : "Regular") << "\n\n";
         cout << "[0] Cancel\n";
-        cout << "[1] Add Vehicle\n\n";
+        cout << "[1] Confirm\n\n";
         cout << "Enter an option: ";
         
         int choice;
+        // Loop goal: Keep prompting until user enters valid confirmation choice (0 or 1)
         while (true) {
             if (cin >> choice && (choice == 0 || choice == 1)) {
                 cin.ignore();
@@ -216,8 +226,14 @@ bool addVehicleFromUI() {
     cout << "==============================================================\n";
     
     // Get license plate
+    cout << "\nVehicle License Plate:\n";
     cout << "Format: Alphanumeric license plate (e.g., ABC123, BC1234, 7XYZ890)\n";
-    string licenceStr = getValidStringInput("License Plate (1-10 characters): ", 10);
+    cout << "Guidelines:\n";
+    cout << "  - Mix of letters and numbers\n";
+    cout << "  - 1-10 characters maximum\n";
+    cout << "  - No spaces or special characters\n";
+    cout << "  - Examples: BC1234, ABC123, 7XYZ890, QWE456\n";
+    string licenceStr = getValidStringInput("License Plate: ", 10);
     if (licenceStr == "CANCEL") {
         cout << "Operation cancelled.\n";
         return false;
@@ -237,22 +253,78 @@ bool addVehicleFromUI() {
     vehicleFileIO.close();
     
     // Get phone number
-    cout << "Format: Phone number with area code (e.g., 604-555-1234, 2501234567)\n";
-    string phoneStr = getValidStringInput("Phone Number (8-14 characters): ", 14);
+    cout << "\nPhone Number:\n";
+    cout << "Format: Phone number with area code\n";
+    cout << "Guidelines:\n";
+    cout << "  - Include area code (3 digits)\n";
+    cout << "  - 10 digits total (North American format)\n";
+    cout << "  - Can include dashes or be all digits\n";
+    cout << "  - Examples: 604-555-1234, 2501234567, 778-999-0000\n";
+    string phoneStr = getValidStringInput("Phone Number: ", 14);
     if (phoneStr == "CANCEL") {
         cout << "Operation cancelled.\n";
         return false;
     }
     
-    // Get vehicle dimensions
-    cout << "Format: Decimal number in meters (e.g., 5.2, 12.5, 18.0)\n";
-    cout << "Note: Regular vehicles: length ≤ 7.0m, height ≤ 2.0m\n";
-    cout << "      Special vehicles: length > 7.0m OR height > 2.0m\n";
-    float length = getValidFloatInput("Vehicle Length (meters, 0.1-20.0): ", 0.1f, 20.0f);
-    float height = getValidFloatInput("Vehicle Height (meters, 0.1-20.0): ", 0.1f, 20.0f);
+    // Ask if vehicle is special or regular
+    cout << "\nVehicle Type:\n";
+    cout << "[1] Regular Vehicle (7.0m length x 2.0m height)\n";
+    cout << "[2] Special Vehicle (custom dimensions)\n";
+    cout << "[0] Cancel\n\n";
     
-    // Determine if special vehicle
-    bool isSpecial = (height > 2.0f || length > 7.0f);
+    int vehicleType;
+    // Loop goal: Keep prompting until user selects a valid vehicle type option (0, 1, or 2)
+    while (true) {
+        cout << "Select vehicle type (0-2): ";
+        if (cin >> vehicleType && vehicleType >= 0 && vehicleType <= 2) {
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            break;
+        } else {
+            cout << "Invalid input. Please enter 0, 1, or 2.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+    
+    if (vehicleType == 0) {
+        cout << "Operation cancelled.\n";
+        return false;
+    }
+    
+    float length, height;
+    bool isSpecial;
+    
+    if (vehicleType == 1) {
+        // Regular vehicle - use default dimensions
+        length = 7.0f;
+        height = 2.0f;
+        isSpecial = false;
+        cout << "Using regular vehicle dimensions: 7.0m length x 2.0m height\n";
+    } else {
+        // Special vehicle - get custom dimensions (no upper limit)
+        cout << "\nSpecial Vehicle Custom Dimensions:\n";
+        cout << "Guidelines:\n";
+        cout << "  - Enter dimensions in meters (decimal format)\n";
+        cout << "  - Special vehicles: length > 7.0m OR height > 2.0m\n";
+        cout << "  - Use decimal point for precision (e.g., 12.5, 4.2)\n";
+        cout << "  - No upper limit for special vehicles\n";
+        cout << "  - Examples: 15.5, 4.2, 60.0, 8.1\n\n";
+        
+        cout << "Vehicle Length:\n";
+        cout << "Format: Decimal number in meters (e.g., 15.5, 60.0, 8.1)\n";
+        length = getValidFloatInput("Vehicle Length (meters, min 0.1): ", 0.1f, numeric_limits<float>::max());
+        
+        cout << "\nVehicle Height:\n";
+        cout << "Format: Decimal number in meters (e.g., 4.2, 2.5, 6.0)\n";
+        height = getValidFloatInput("Vehicle Height (meters, min 0.1): ", 0.1f, numeric_limits<float>::max());
+        
+        // Verify it's actually a special vehicle
+        isSpecial = (height > 2.0f || length > 7.0f);
+        if (!isSpecial) {
+            cout << "Warning: Dimensions entered qualify as regular vehicle, but will be treated as special.\n";
+            isSpecial = true; // Force as special since user selected it
+        }
+    }
     
     // Show confirmation screen
     if (confirmVehicleData(licenceStr.c_str(), phoneStr.c_str(), length, height, isSpecial)) {
@@ -315,6 +387,11 @@ bool editVehicleFromUI(const string& licencePlate) {
     
     switch (choice) {
         case 1: {
+            cout << "\nEdit License Plate:\n";
+            cout << "Format: Alphanumeric license plate\n";
+            cout << "Guidelines:\n";
+            cout << "  - Mix of letters and numbers (1-10 characters)\n";
+            cout << "  - Examples: BC1234, ABC123, 7XYZ890, QWE456\n";
             string newLicence = getValidStringInput("New License Plate: ", 10);
             if (newLicence == "CANCEL") return false;
             
@@ -341,6 +418,11 @@ bool editVehicleFromUI(const string& licencePlate) {
             break;
         }
         case 2: {
+            cout << "\nEdit Phone Number:\n";
+            cout << "Format: Phone number with area code\n";
+            cout << "Guidelines:\n";
+            cout << "  - Include area code (10 digits total)\n";
+            cout << "  - Examples: 604-555-1234, 2501234567, 778-999-0000\n";
             string newPhone = getValidStringInput("New Phone Number: ", 14);
             if (newPhone == "CANCEL") return false;
             
@@ -358,7 +440,13 @@ bool editVehicleFromUI(const string& licencePlate) {
             break;
         }
         case 3: {
-            float newLength = getValidFloatInput("New Length (meters): ", 0.1f, 20.0f);
+            cout << "\nEdit Vehicle Length:\n";
+            cout << "Format: Decimal number in meters\n";
+            cout << "Guidelines:\n";
+            cout << "  - Enter length in meters (e.g., 7.0, 15.5, 60.0)\n";
+            cout << "  - Regular vehicles: ≤ 7.0m, Special vehicles: > 7.0m\n";
+            cout << "  - Use decimal point for precision\n";
+            float newLength = getValidFloatInput("New Length (meters): ", 0.1f, numeric_limits<float>::max());
             
             // Create updated vehicle
             Vehicle updatedVehicle;
@@ -381,7 +469,13 @@ bool editVehicleFromUI(const string& licencePlate) {
             break;
         }
         case 4: {
-            float newHeight = getValidFloatInput("New Height (meters): ", 0.1f, 20.0f);
+            cout << "\nEdit Vehicle Height:\n";
+            cout << "Format: Decimal number in meters\n";
+            cout << "Guidelines:\n";
+            cout << "  - Enter height in meters (e.g., 2.0, 4.2, 6.0)\n";
+            cout << "  - Regular vehicles: ≤ 2.0m, Special vehicles: > 2.0m\n";
+            cout << "  - Use decimal point for precision\n";
+            float newHeight = getValidFloatInput("New Height (meters): ", 0.1f, numeric_limits<float>::max());
             
             // Create updated vehicle
             Vehicle updatedVehicle;

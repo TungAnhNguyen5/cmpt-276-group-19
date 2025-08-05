@@ -1,0 +1,4156 @@
+Ferry Reservation Software System - Source Code Compilation
+Generated on: Tue Aug  5 02:36:15 PDT 2025
+=============================================================
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: main.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System 
+// TEAM: Group 19
+// DATE: 2025/07/09
+//************************************************************
+// PURPOSE:
+// Entry point of the Ferry Reservation Software System.
+// Initializes the system, runs the main UI loop, and shuts down // cleanly.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/24 - James Nguyen
+// - Initial version of main.cpp file.
+// Rev. 2 - 2025/08/05 - James Nguyen
+// - Finalized main.cpp to integrate with UI and system modules.
+// - Ensured proper initialization and shutdown sequence.
+//************************************************************
+
+
+#include <iostream>
+#include "ui.h"
+
+int main() {
+    // Initialize system modules
+    if (!UI::initialize()) {
+        std::cerr << "Initialization failed. Exiting program.\n";
+        return 1;
+    }
+
+    // Launch main menu loop
+    UI::mainMenu();
+
+    // Shutdown and cleanup
+    UI::shutdown();
+
+    return 0;
+}
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: reservation.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System //(Assignment #4)
+// TEAM: Group 19
+// DATE: 25/07/24
+//************************************************************
+// PURPOSE:
+//   Implements reservation logic including adding, checking-in,
+//   fare calculation, and reservation management.
+//************************************************************
+// USAGE:
+// - Call initialize() before using any functions in this //module.
+// - Call shutdown() before program exit to flush and close //storage.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/24 - Danny Choi
+//        - Initial .cpp implementation based on header 
+// specification.
+// Rev. 2 - 2025/08/05 - Danny Choi
+//        - Fully debugged final release version.
+//************************************************************
+
+
+#include "reservation.h"
+#include "reservationFileIO.h"
+#include "sailing.h"
+#include "sailingFileIO.h"
+#include "vehicle.h"
+#include "vehicleFileIO.h"
+#include <iostream>
+#include <cstring>
+
+//--------------------------------------------------
+// Function: initialize
+//--------------------------------------------------
+// Function: initialize
+//--------------------------------------------------
+// Opens the reservation file to initialize the system.
+// Required before any other reservation operations can occur.
+void initialize()
+{
+    open("reservation.dat");
+}
+
+//--------------------------------------------------
+// Function: shutdown
+//--------------------------------------------------
+// Closes the open reservation file to release resources.
+void shutdown()
+{
+    close();
+}
+
+//--------------------------------------------------
+// Function: addReservation
+//--------------------------------------------------
+// Creates a new reservation record, zeroes its memory, fills
+// it with user input, and writes it to file. Assumes reservation
+// uniqueness is managed at a higher level or via overwrite logic
+// in the file layer.
+bool addReservation(const std::string &sailingID,
+                    const std::string &licensePlate,
+                    const std::string &phone,
+                    bool isSpecial,
+                    float height,
+                    float length)
+{
+    // Mark unused parameters to suppress compiler warnings
+ 
+    
+    // Get the sailing to update its capacity
+    Sailing sailing = Sailing::getSailingFromIO(sailingID.c_str());
+    
+    // Check how many vehicles are already on this sailing to determine spacing
+    std::vector<ReservationRecord> existingReservations = getAllOnSailing(sailingID);
+    const float VEHICLE_SPACING = 0.5f; // 0.5 meter spacing between vehicles
+    
+    // Only add spacing if there are already vehicles on the sailing
+    float spacingNeeded = existingReservations.empty() ? 0.0f : VEHICLE_SPACING;
+    
+    bool capacityUpdated = false;
+    if (isSpecial) {
+        // Special vehicles use:
+        // - Length + spacing from LRL (Low Remaining Length)
+        // - Height from HRL (High Remaining Length)
+        float lengthNeeded = length + spacingNeeded;
+        float heightNeeded = height;
+        
+        bool lrlUpdated = sailing.lrlUpdate(lengthNeeded);
+        bool hrlUpdated = sailing.hrlUpdate(heightNeeded);
+        capacityUpdated = lrlUpdated && hrlUpdated;
+    } else {
+        // Regular vehicles always use standard dimensions:
+        // - 7.0m length + spacing from LRL (Low Remaining Length)  
+        // - 2.0m height from HRL (High Remaining Length)
+        const float REGULAR_LENGTH = 7.0f;
+        const float REGULAR_HEIGHT = 2.0f;
+        
+        float lengthNeeded = REGULAR_LENGTH + spacingNeeded;
+        float heightNeeded = REGULAR_HEIGHT;
+        
+        bool lrlUpdated = sailing.lrlUpdate(lengthNeeded);
+        bool hrlUpdated = sailing.hrlUpdate(heightNeeded);
+        capacityUpdated = lrlUpdated && hrlUpdated;
+    }
+    
+    // If we couldn't update capacity (sailing is full), return false
+    if (!capacityUpdated) {
+        return false;
+    }
+
+    // Save the updated sailing capacity to file
+    sailingFileIO::saveSailing(sailing);
+
+    ReservationRecord record;
+    std::memset(&record, 0, sizeof(ReservationRecord)); // Clear all bytes in the struct
+
+    std::strncpy(record.sailingID, sailingID.c_str(), SAILING_ID_MAX - 1);
+    record.sailingID[SAILING_ID_MAX - 1] = '\0'; // Ensure null termination
+    
+    std::strncpy(record.licensePlate, licensePlate.c_str(), LICENSE_PLATE_MAX - 1);
+    record.licensePlate[LICENSE_PLATE_MAX - 1] = '\0'; // Ensure null termination
+
+    record.onboard = false;
+
+    return saveReservation(record);
+}
+
+//--------------------------------------------------
+// Function: checkedIn
+//--------------------------------------------------
+// Loads the reservation from file and marks it onboard=true.
+// Then saves the updated record. Returns false if reservation
+// was not found.
+bool checkedIn(const std::string &sailingID,
+               const std::string &licensePlate)
+{
+    ReservationRecord record;
+
+    // Attempt to locate record in file
+    if (!getReservation(licensePlate, sailingID, record))
+        return false;
+
+    // Update and re-save only if onboard was previously false
+    if (!record.onboard)
+    {
+        record.onboard = true;
+        saveReservation(record);
+    }
+
+    return true;
+}
+
+//--------------------------------------------------
+// Function: checkIn
+//--------------------------------------------------
+// If a reservation exists, performs check-in (onboard=true),
+// saves it, and calculates fare based on input vehicle info.
+// Returns fare, or -1.0f if reservation doesn't exist.
+float checkIn(const std::string &sailingID,
+              const std::string &licensePlate,
+              bool isSpecial,
+              float height,
+              float length)
+{
+    if (!exists(licensePlate, sailingID))
+        return -1.0f;
+
+    checkedIn(sailingID, licensePlate);
+
+    return calculateFare(isSpecial, length, height);
+}
+
+//--------------------------------------------------
+// Function: calculateFare
+//--------------------------------------------------
+// Computes fare using simple business rules:
+// - Regular vehicles: flat rate
+// - Over-height special vehicles: $3/m
+// - Low long special vehicles: $2/m
+float calculateFare(bool isSpecial, float length, float height)
+{
+    const float REGULAR_FARE = 14.00f;
+    const float HEIGHT_THRESHOLD = 2.00f;
+    const float OVER_HEIGHT_RATE = 3.00f;
+    const float STANDARD_RATE = 2.00f;
+
+    if (!isSpecial)
+        return REGULAR_FARE;
+
+    if (height > HEIGHT_THRESHOLD)
+        return length * OVER_HEIGHT_RATE;
+
+    else if (height <= HEIGHT_THRESHOLD)
+        return length * STANDARD_RATE;
+
+    return 0.0f; // Fallback for unexpected input
+}
+
+//--------------------------------------------------
+// Function: deleteAllOnSailing
+//--------------------------------------------------
+// Iterates through all reservations matching sailingID and deletes them.
+// GOAL: count how many reservations were deleted.
+// Step: one record at a time from getAllOnSailing result.
+int deleteAllOnSailing(const std::string &sailingID)
+{
+    int count = 0;
+    std::vector<ReservationRecord> records = getAllOnSailing(sailingID);
+
+    // Loop goal: Delete each reservation record for the specified sailing
+    for (const auto &rec : records)
+    {
+        // Delete one record at a time by license plate + sailing ID
+        if (deleteReservation(std::string(rec.licensePlate), sailingID))
+        {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
+//--------------------------------------------------
+// Function: moveReservations
+//--------------------------------------------------
+// Transfers all reservations from one sailing ID to another by:
+// - reading matching reservations
+// - modifying the sailingID field
+// - re-saving them with the updated ID
+// GOAL: perform in-place update of file contents for sailing migration.
+int moveReservations(const std::string &fromSailingID,
+                     const std::string &toSailingID)
+{
+    int count = 0;
+    std::vector<ReservationRecord> records = getAllOnSailing(fromSailingID);
+
+    // Loop goal: Move each reservation from one sailing to another by updating sailingID
+    for (auto &rec : records)
+    {
+        std::strncpy(rec.sailingID, toSailingID.c_str(), SAILING_ID_MAX);
+
+        if (saveReservation(rec))
+        {
+            ++count;
+        }
+    }
+
+    return count;
+}
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: reservation.h
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System 
+// (Assignment #4)
+// TEAM: Group 19
+// DATE: 25/07/24
+//************************************************************
+// PURPOSE:
+//   Declares the interface for reservation-related logic, 
+// including
+//   adding, checking-in, and fare calculation.
+//************************************************************
+// USAGE:
+// - Call initialize() before using any functions in this 
+// module.
+// - Call shutdown() before exiting the program.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - Danny Choi
+//          - Initial draft for interface specification.
+// Rev. 2 - 2025/07/24 - Danny Choi
+//          - Finalized interface and aligned with .cpp 
+// implementation.
+// Rev. 3 - 2025/08/05 - Danny Choi
+//          - Fully debugged final release version.
+//************************************************************
+// in: Represents input parameter
+// out: Represents output parameter
+//************************************************************
+
+
+#ifndef RESERVATION_H
+#define RESERVATION_H
+
+#include <string>
+
+const int LICENSE_PLATE_MAX = 12; // Max characters for license plate (including 
+// null terminator)
+const int SAILING_ID_MAX = 10;     // Max characters for sailing ID (including 
+// null terminator)
+
+//--------------------------------------------------
+// Minimal type used for interface clarity only.
+// This struct represents a reservation as seen at the interface level.
+// Do not assume this matches the internal data layout in Assignment 4.
+struct ReservationData
+{
+    std::string licensePlate; // Vehicle license plate
+    std::string sailingID;    // Associated sailing ID
+    bool onboard;             // True if checked-in, false otherwise
+};
+
+//--------------------------------------------------
+// Initializes the reservation subsystem.
+void initialize();
+
+//--------------------------------------------------
+// Shuts down the reservation subsystem and releases internal resources.
+void shutdown();
+
+//--------------------------------------------------
+// Adds a reservation for a vehicle to a sailing.
+// Returns true if the reservation was successfully added.
+bool addReservation(
+    const std::string &sailingID,    // in: sailing to reserve on
+    const std::string &licensePlate, // in: vehicle's license plate
+    const std::string &phone,        // in: contact phone number
+    bool isSpecial,                  // in: true if special vehicle
+    float height,                    // in: height (if special), else 0
+    float length                     // in: length (if special), else 0
+);
+
+//--------------------------------------------------
+// Marks an existing reservation as checked in.
+// Returns true if successful.
+bool checkedIn(
+    const std::string &sailingID,   // in: sailing ID
+    const std::string &licensePlate // in: vehicle's license plate
+);
+
+//--------------------------------------------------
+// Performs check-in logic and returns calculated fare.
+// Returns -1.0 if reservation does not exist.
+float checkIn(
+    const std::string &sailingID,    // in: sailing ID
+    const std::string &licensePlate, // in: vehicle's license plate
+    bool isSpecial,                  // in: true if special vehicle
+    float height,                    // in: height if special (m)
+    float length                     // in: length if special (m)
+);
+
+//--------------------------------------------------
+// Calculates the fare based on type and dimensions.
+// Returns fare in dollars to two decimal places.
+float calculateFare(
+    bool isSpecial, // in: true if special vehicle
+    float length,   // in: vehicle length in meters
+    float height    // in: vehicle height in meters
+);
+
+//--------------------------------------------------
+// Deletes all reservations for the given sailing.
+// Returns the number of reservations deleted.
+int deleteAllOnSailing(
+    const std::string &sailingID // in: sailing ID
+);
+
+//--------------------------------------------------
+// Moves all reservations from one sailing to another.
+// Returns number of reservations successfully moved.
+int moveReservations(
+    const std::string &fromSailingID, // in: source sailing ID
+    const std::string &toSailingID    // in: destination sailing ID
+);
+
+#endif // RESERVATION_H
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: reservationFileIO.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System 
+// (Assignment #4)
+// TEAM: Group 19
+// DATE: 25/07/24
+//************************************************************
+// PURPOSE:
+//   Implements reservation file I/O logic, including reading,
+//   writing, updating, and deleting reservation records using
+//   fixed-length binary format with C++ fstream.
+//************************************************************
+// USAGE:
+// - Call open() before using read/write functions.
+// - Call close() during shutdown.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/24 - Danny Choi
+//          - Implementation of .cpp file based on header
+// specification.
+// Rev. 2 - 2025/08/05 - Danny Choi
+//          - Fully debugged final release version.
+//************************************************************
+
+
+#include "reservationFileIO.h"
+#include "reservation.h"
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <cstring>
+#include <unistd.h> // for ftruncate, fileno
+#define TRUNCATE ftruncate
+#define FILENO fileno
+
+//--------------------------------------------------
+// Module-scope file stream for reading/writing reservation 
+// records
+static std::fstream reservationFile;
+
+//--------------------------------------------------
+// Path of the binary file in use (needed for re-opening after 
+// truncation)
+static std::string filePath;
+
+//--------------------------------------------------
+// Opens the binary reservation file for read/write access.
+// If file does not exist, it is created. Returns true on success.
+bool open(const std::string &filename)
+{
+    filePath = filename;
+
+    reservationFile.open(filePath, std::ios::in | std::ios::out | std::ios::binary);
+
+    if (!reservationFile.is_open())
+    {
+        reservationFile.clear();
+        reservationFile.open(filePath, std::ios::out | std::ios::binary);
+        reservationFile.close();
+        reservationFile.open(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    }
+
+    return reservationFile.is_open();
+}
+
+//--------------------------------------------------
+// Closes the currently open reservation file if open.
+void close()
+{
+    if (reservationFile.is_open())
+        reservationFile.close();
+}
+
+//--------------------------------------------------
+// Saves a reservation record to file. If a matching record
+// exists, it is overwritten. Otherwise, the record is appended.
+// Returns true if successful.
+bool saveReservation(const ReservationRecord &record)
+{
+    if (!reservationFile.is_open())
+        return false;
+
+    ReservationRecord existing;
+    long pos = 0;
+    reservationFile.clear();
+    reservationFile.seekg(0);
+
+    // Search for existing matching record
+    // Loop goal: Read through all reservation records to find matching license 
+    // plate and sailing ID
+    while (reservationFile.read(reinterpret_cast<char *>(&existing), sizeof(ReservationRecord)))
+    {
+        if (std::strncmp(existing.licensePlate, record.licensePlate, LICENSE_PLATE_MAX) == 0 &&
+            std::strncmp(existing.sailingID, record.sailingID, SAILING_ID_MAX) == 0)
+        {
+            reservationFile.seekp(pos);
+            reservationFile.write(reinterpret_cast<const char *>(&record), sizeof(ReservationRecord));
+            reservationFile.flush(); // Ensure data is written to disk
+            return reservationFile.good(); // confirm successful write
+        }
+        pos = reservationFile.tellg();
+    }
+
+    // Append to end if not found
+    reservationFile.clear();
+    reservationFile.seekp(0, std::ios::end);
+    reservationFile.write(reinterpret_cast<const char *>(&record), sizeof(ReservationRecord));
+    reservationFile.flush(); // Ensure data is written to disk
+    return reservationFile.good(); // confirm successful append
+}
+
+//--------------------------------------------------
+// Retrieves a reservation record matching license plate 
+// and sailing ID.
+// Loads the result into 'record'. Returns true if found, 
+// false otherwise.
+bool getReservation(const std::string &licensePlate,
+                    const std::string &sailingID,
+                    ReservationRecord &record)
+{
+    if (!reservationFile.is_open())
+        return false;
+
+    reservationFile.clear();
+    reservationFile.seekg(0);
+
+    // Loop goal: Search through all reservation records to find specific license plate and sailing ID
+    while (reservationFile.read(reinterpret_cast<char *>(&record), sizeof(ReservationRecord)))
+    {
+        if (std::strncmp(record.licensePlate, licensePlate.c_str(), LICENSE_PLATE_MAX) == 0 &&
+            std::strncmp(record.sailingID, sailingID.c_str(), SAILING_ID_MAX) == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//--------------------------------------------------
+// Returns true if a reservation matching the given license plate
+// and sailing ID exists in the file.
+bool exists(const std::string &licensePlate, const std::string &sailingID)
+{
+    ReservationRecord dummy;
+    return getReservation(licensePlate, sailingID, dummy);
+}
+
+//--------------------------------------------------
+// Deletes a reservation record by rewriting all other records
+// to a truncated file. Returns true if deletion succeeded.
+bool deleteReservation(const std::string &licensePlate, const std::string &sailingID)
+{
+    if (!reservationFile.is_open())
+        return false;
+
+    std::vector<ReservationRecord> all;
+    ReservationRecord rec;
+    reservationFile.clear();
+    reservationFile.seekg(0);
+
+    // Loop goal: Read all records and keep only those that don't match the deletion criteria
+    while (reservationFile.read(reinterpret_cast<char *>(&rec), sizeof(ReservationRecord)))
+    {
+        if (!(std::strncmp(rec.licensePlate, licensePlate.c_str(), LICENSE_PLATE_MAX) == 0 &&
+              std::strncmp(rec.sailingID, sailingID.c_str(), SAILING_ID_MAX) == 0))
+        {
+            all.push_back(rec);
+        }
+    }
+
+    // Rewrite all remaining records
+    reservationFile.close(); // close before overwriting
+    std::ofstream truncFile(filePath, std::ios::out | std::ios::binary | std::ios::trunc);
+    // Loop goal: Write all remaining records back to the file after deletion
+    for (const auto &r : all)
+    {
+        truncFile.write(reinterpret_cast<const char *>(&r), sizeof(ReservationRecord));
+    }
+    truncFile.close();
+
+    // Reopen the file for further I/O
+    reservationFile.open(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    return true;
+}
+
+//--------------------------------------------------
+// Retrieves all reservation records that match the given sailing ID.
+// Returns them in a vector.
+std::vector<ReservationRecord> getAllOnSailing(const std::string &sailingID)
+{
+    std::vector<ReservationRecord> results;
+    if (!reservationFile.is_open())
+        return results;
+
+    ReservationRecord rec;
+    reservationFile.clear();
+    reservationFile.seekg(0);
+
+    while (reservationFile.read(reinterpret_cast<char *>(&rec), sizeof(ReservationRecord)))
+    {
+        if (std::strncmp(rec.sailingID, sailingID.c_str(), SAILING_ID_MAX) == 0)
+        {
+            results.push_back(rec);
+        }
+    }
+
+    return results;
+}
+
+//--------------------------------------------------
+// Retrieves all reservation records that match the given license plate.
+// Returns them in a vector.
+std::vector<ReservationRecord> getAllWithVehicle(const std::string &licensePlate)
+{
+    std::vector<ReservationRecord> results;
+    if (!reservationFile.is_open())
+        return results;
+
+    ReservationRecord rec;
+    reservationFile.clear();
+    reservationFile.seekg(0);
+
+    while (reservationFile.read(reinterpret_cast<char *>(&rec), sizeof(ReservationRecord)))
+    {
+        if (std::strncmp(rec.licensePlate, licensePlate.c_str(), LICENSE_PLATE_MAX) == 0)
+        {
+            results.push_back(rec);
+        }
+    }
+
+    return results;
+}
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: reservationFileIO.h
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System //(Assignment #4)
+// TEAM: Group 19
+// DATE: 25/07/24
+//************************************************************
+// PURPOSE:
+//   Declares the interface for persistent storage of //reservations
+//   using fixed-length binary random-access I/O.
+//   This module provides functionality for reading,
+//   writing, deleting, and scanning reservation records stored //in
+//   a binary file.
+//************************************************************
+// USAGE:
+// - Call open() once at system startup.
+// - Use save/get/delete functions during runtime.
+// - Call close() once before program shutdown.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - Danny Choi
+//          - Initial interface for I/O abstraction.
+// Rev. 2 - 2025/07/24 - Danny Choi
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Danny Choi
+//          - Fully debugged final release version.
+//************************************************************
+// in:  Represents input parameter
+// out: Represents output parameter
+//************************************************************
+
+#ifndef RESERVATION_FILE_IO_H
+#define RESERVATION_FILE_IO_H
+
+#include <string>
+#include <vector>
+#include <fstream>
+#include "reservation.h"
+
+//--------------------------------------------------
+// Fixed-length record representing a reservation
+// used for binary storage. Must match binary file layout.
+//--------------------------------------------------
+struct ReservationRecord
+{
+    char licensePlate[LICENSE_PLATE_MAX]; 
+    // Vehicle license plate (max 10 characters)
+    char sailingID[SAILING_ID_MAX];       
+    // Sailing ID (max 9 characters)
+    bool onboard;                         
+    // True if already checked in
+};
+
+//--------------------------------------------------
+// Opens the reservation data file for binary read/write access.
+// Returns true on success, false if file could not be opened.
+bool open(
+    const std::string &filename // in: path to binary file
+);
+
+//--------------------------------------------------
+// Closes the reservation file, flushing any buffered writes.
+void close();
+
+//--------------------------------------------------
+// Saves or updates a reservation record in the file.
+// If the reservation already exists (matched by plate + sailing),
+// it is updated in-place. Otherwise, it is appended.
+// Returns true if successful.
+bool saveReservation(
+    const ReservationRecord &record // in: reservation to save
+);
+
+//--------------------------------------------------
+// Retrieves a reservation record by vehicle and sailing ID.
+// Populates the provided record struct.
+// Returns true if found, false otherwise.
+bool getReservation(
+    const std::string &licensePlate, // in: vehicle ID
+    const std::string &sailingID,    // in: sailing ID
+    ReservationRecord &record        // out: loaded record
+);
+
+//--------------------------------------------------
+// Checks if a reservation exists (by license + sailing ID).
+// Returns true if it exists, false otherwise.
+bool exists(
+    const std::string &licensePlate, // in: vehicle ID
+    const std::string &sailingID     // in: sailing ID
+);
+
+//--------------------------------------------------
+// Deletes a reservation (if it exists) by rewriting the file.
+// Returns true if a deletion was performed.
+bool deleteReservation(
+    const std::string &licensePlate, // in: vehicle ID
+    const std::string &sailingID     // in: sailing ID
+);
+
+//--------------------------------------------------
+// Retrieves all reservations for a given sailing ID.
+// Returns a vector of matching ReservationRecords.
+std::vector<ReservationRecord> getAllOnSailing(
+    const std::string &sailingID // in: sailing ID
+);
+
+//--------------------------------------------------
+// Retrieves all reservations associated with a license plate.
+// Returns a vector of matching ReservationRecords.
+std::vector<ReservationRecord> getAllWithVehicle(
+    const std::string &licensePlate // in: vehicle ID
+);
+
+#endif // RESERVATION_FILE_IO_H
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: sailing.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+//   Implements the Sailing class, which manages sailing records
+//   including creation, editing, and persistence through file //I/O.
+//   Provides functionality for adding, editing, and retrieving //sailings,
+//   as well as handling user input for sailing management.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - Nathan Miller
+//          - Initial interface for sailing class.
+// Rev. 2 - 2025/07/24 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
+//          - Fully debugged final release version.
+//************************************************************
+
+
+#include "sailing.h"
+#include "sailingFileIO.h"
+#include "ui.h"
+#include <iostream>
+#include <iomanip>
+#include <cstring>
+#include <limits>
+#include <algorithm>
+#include <vector>
+#include <sstream>
+
+using namespace std;
+
+// cancel is always 0 so using a constant for it makes sense
+const int CANCEL_OPTION = 0;
+
+// public functions
+bool Sailing::addSailing()
+{
+    const char SID_SEPARATOR = '-';
+    const int CONFIRM_OPTION = 1;
+
+    // uses helper functions to prompt the user for and create the sailing id
+    UI::displayHeader("Add Sailing");
+    string depTerm = addDepTerm();
+    string date = addDate();
+    string time = addTime();
+
+    // forms the sailing id according to the ord, converts to char array
+    string sidString = depTerm + SID_SEPARATOR + date + SID_SEPARATOR + time;
+    char sid[10];
+
+    strcpy(sid, sidString.c_str());
+    sid[sizeof(sid) - 1] = '\0';
+
+    // aborts the process if the sailing already exists
+    if (sailingFileIO::exists(sid))
+    {
+        cout << "Sailing with ID " << sid << " already exists.\n";
+        return false;
+    }
+
+    // uses helper functions to prompt the user for the rest of the sailing information.
+    string vessel = addVessel();
+    int lcll = addLCLL();
+    int hcll = addHCLL();
+
+    // displays the sailing information before prompting the user to confirm
+    cout << "\nDeparture Terminal: " << depTerm << "\n";
+    cout << "Departure Date: " << date << "\n";
+    cout << "Departure Time: " << time << "\n";
+    cout << "Vessel ID: " << vessel << "\n";
+    cout << "LCLL: " << lcll << "\n";
+    cout << "HCLL: " << hcll << "\n";
+
+    // confirms the entry, cancels if cancelled
+    if (!confirm(CONFIRM_OPTION))
+    {
+        // aborts this operation and hands control back to ui.cpp
+        return false;
+    }
+
+    // combines everything into a sailing
+    Sailing s;
+    strcpy(s.sailingID, sid);
+    strcpy(s.vesselID, vessel.c_str());
+    s.lcll = lcll;
+    s.hcll = hcll;
+    s.lrl = lcll;
+    s.hrl = hcll;
+
+    if (sailingFileIO::saveSailing(s))
+    {
+        cout << "Sailing Successfully Added. Returning to the main menu.\n";
+        UI::displayFooter();
+        return true;
+    }
+
+    cout << "Error: Unable to add sailing.\n";
+    // if it fails to save, returns false to the UI
+    UI::displayFooter();
+    return false;
+}
+
+void Sailing::editSailing()
+{
+    bool editing = true;
+    int input;
+    Sailing s = *this;
+    
+    // Validate that this sailing has valid data before proceeding
+    if (strlen(s.sailingID) == 0 || s.sailingID[0] == '\0') {
+        UI::displayHeader("Edit Sailing");
+        cout << "Error: Invalid sailing data. Cannot edit this sailing.\n";
+        UI::displayFooter();
+        return;
+    }
+
+    // runs the editing loop until either confirm, cancel, delete, or manage reservations is chosen
+    // Loop goal: Continue editing sailing details until user chooses to confirm, cancel, delete, or manage reservations
+    while (editing)
+    {
+        // used to keep track of order and options
+        enum editSailingOptions
+        {
+            DEP_TERM = 1,
+            DEP_DAY,
+            DEP_TIME,
+            VESSEL_ID,
+            LCLL,
+            HCLL,
+            NUM_OF_OPTIONS = 6
+        };
+
+        string sid = s.sailingID;
+        
+        // Additional validation: check if sailing ID has proper format
+        if (sid.length() < 7 || sid.find('-') == string::npos) {
+            UI::displayHeader("Edit Sailing");
+            cout << "Error: Invalid sailing ID format. Cannot edit this sailing.\n";
+            UI::displayFooter();
+            return;
+        }
+        
+        UI::displayHeader("Edit Sailing");
+        // Loop goal: Display all editing options in order (1 through NUM_OF_OPTIONS)
+        for (int i = 1; i <= NUM_OF_OPTIONS; i++)
+        {            
+            switch (i)
+            {
+            case DEP_TERM:
+                if (sid.length() >= 3) {
+                    cout << "[" << i << "] " << "Departure Terminal: " << sid.substr(0, 3) << "\n";
+                } else {
+                    cout << "[" << i << "] " << "Departure Terminal: [Invalid]\n";
+                }
+                break;
+
+            case DEP_DAY:
+                if (sid.length() >= 6) {
+                    cout << "[" << i << "] " << "Departure Day: " << sid.substr(4, 2) << "\n";
+                } else {
+                    cout << "[" << i << "] " << "Departure Day: [Invalid]\n";
+                }
+                break;
+
+            case DEP_TIME:
+                if (sid.length() >= 9) {
+                    cout << "[" << i << "] " << "Departure Time: " << sid.substr(7, 2) << "\n";
+                } else {
+                    cout << "[" << i << "] " << "Departure Time: [Invalid]\n";
+                }
+                break;
+
+            case VESSEL_ID:
+                cout << "[" << i << "] " << "Vessel ID: " << s.vesselID << "\n";
+                break;
+
+            case LCLL:
+                cout << "[" << i << "] " << "LCLL: " << s.lcll << "\n";
+                break;
+
+            case HCLL:
+                cout << "[" << i << "] " << "HCLL: " << s.hcll << "\n";
+                break;
+            }
+        }
+
+        // after two new lines, prints the options that aren't directly tied to editing the sailing.
+        const int CONFIRM_OPTION = 7;
+        const int RESERVATIONS_OPTION = 8;
+        const int DELETE_OPTION = 9;
+
+        cout << "\n[" << CANCEL_OPTION << "] Cancel\n";
+        cout << "[" << CONFIRM_OPTION << "] Confirm\n";
+        cout << "[" << RESERVATIONS_OPTION << "] Manage Reservations\n";
+        cout << "[" << DELETE_OPTION << "] Delete Sailing\n";
+
+        // prompts the user for input until they enter something valid.
+        cout << "\nEnter an Option: ";
+        cin >> input;
+        if (cin.fail() || input < CANCEL_OPTION || input > DELETE_OPTION)
+        {
+            cout << "Please enter a valid option: ";
+        }
+        else
+        {
+            switch (input)
+            {
+            // returns control to UI if cancelled
+            case CANCEL_OPTION:
+                cout << "Changes Reverted. Returning to the main menu.\n";
+                return;
+                break;
+            case DEP_TERM:
+            {
+                string newDepTerm;
+                newDepTerm = addDepTerm();
+                const char *newDepTermC = newDepTerm.c_str();
+                s.sailingID[0] = newDepTermC[0];
+                s.sailingID[1] = newDepTermC[1];
+                s.sailingID[2] = newDepTermC[2];
+                // aborts the operation if the new sailing ID already exists
+                if (sailingFileIO::exists(s.sailingID))
+                {
+                    cout << "Sailing with ID " << s.sailingID << " already exists.\n";
+                    return;
+                }
+                break;
+            }
+            case DEP_DAY:
+            {
+                string newDepDay;
+                newDepDay = addDate();
+                const char *newDepDayC = newDepDay.c_str();
+                s.sailingID[4] = newDepDayC[0];
+                s.sailingID[5] = newDepDayC[1];
+                // aborts the operation if the new sailing ID already exists
+                if (sailingFileIO::exists(s.sailingID))
+                {
+                    cout << "Sailing with ID " << s.sailingID << " already exists.\n";
+                    return;
+                }
+                break;
+            }
+            case DEP_TIME:
+            {
+                string newDepTime;
+                newDepTime = addTime();
+                const char *newDepTimeC = newDepTime.c_str();
+                s.sailingID[7] = newDepTimeC[0];
+                s.sailingID[8] = newDepTimeC[1];
+                // aborts the operation if the new sailing ID already exists
+                if (sailingFileIO::exists(s.sailingID))
+                {
+                    cout << "Sailing with ID " << s.sailingID << " already exists.\n";
+                    return;
+                }
+                break;
+            }
+            break;
+            case VESSEL_ID:
+            {
+                string newVesselID;
+                newVesselID = addVessel();
+                const char *newVesselIDC = newVesselID.c_str();
+                strncpy(s.vesselID, newVesselIDC, sizeof(s.vesselID) - 1);
+                s.vesselID[sizeof(s.vesselID) - 1] = '\0';
+                break;
+            }
+            // ensures that new LCLL and HCLL will still allow for current reservations to fit
+            // prints an error and starts the loop over again if user enters an invalid new value
+            case LCLL:
+            {
+                int newLCLL = addLCLL();
+                if (newLCLL < s.lrl)
+                {
+                    cout << "Error: New LCLL is less than lrl\n";
+                    cin.clear();
+                    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                }
+                else
+                {
+                    s.lrl = newLCLL - (s.lcll - s.lrl);
+                    s.lcll = newLCLL;
+                }
+                break;
+            }
+            case HCLL:
+            {
+                int newHCLL = addHCLL();
+                if (newHCLL < s.hrl)
+                {
+                    cout << "Error: New HCLL is less than hrl\n";
+                    cin.clear();
+                    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                }
+                else
+                {
+                    s.hrl = newHCLL - (s.hcll - s.hrl);
+                    s.hcll = newHCLL;
+                }
+                break;
+            }
+            case CONFIRM_OPTION:
+            {
+                editing = false;
+
+                // also needs to call move reservations, add when relevant
+                sailingFileIO::deleteSailing(sailingID);
+
+                sailingFileIO::saveSailing(s);
+
+                cout << "Changes Successfully Saved. Returning to the main menu.\n";
+                break;
+            }
+            // opens manage reservations for this sailing, requires reservation class
+            case RESERVATIONS_OPTION:
+            {
+                UI::manageReservationsForSailing(s.sailingID);
+                break;
+            }
+            case DELETE_OPTION:
+            {
+                editing = false;
+                if (sailingFileIO::deleteSailing(s.sailingID))
+                {
+                    cout << "Sailing Successfully Deleted. Returning to the main menu.\n";
+                }
+                break;
+            }
+            }
+        }
+        UI::displayFooter();
+    }
+}
+
+void Sailing::displayReport()
+{
+    // initializes variables required for the for loop
+    bool reportActive = true;
+    const int VESSEL_ID_LENGTH = 25;
+    const int LRL_LENGTH = 6;
+    const int HRL_LENGTH = 6;
+    const int PERCENT_LENGTH = 6;
+
+    // resets position in the file so it starts at the beginning every time
+    sailingFileIO::reset();
+
+    // Loop goal: Continue displaying sailing reports until user chooses to exit
+    while (reportActive)
+    {
+        UI::displayHeader("Sailing Report");
+        // grabs up to the first five sailings saved in the system
+        Sailing *fiveSailings = sailingFileIO::getNextFive();
+
+        cout << "SAILING ID" << "  ";
+        cout << left << setw(VESSEL_ID_LENGTH) << "VESSEL ID" << "   ";
+        cout << right << setw(LRL_LENGTH) << "LRL" << "   ";
+        cout << right << setw(HRL_LENGTH) << "HRL" << "  ";
+        cout << right << "FULL %" << "\n";
+        // Loop goal: Display up to 5 sailing records from the current file position
+        for (int i = 0; i < 5; i++)
+        {
+            if (fiveSailings[i].getSailingID()[0] == '\0')
+            {
+                // if the sailingID is empty, it means there are no more sailings to display, user can loop through them again with '5'
+                sailingFileIO::reset();
+                break;
+            }
+            // prints the sailing information formatted according to the user manual
+            cout << fiveSailings[i].sailingID << "   ";
+            cout << left << setw(VESSEL_ID_LENGTH) << fiveSailings[i].vesselID << "   ";
+            cout << right << setw(LRL_LENGTH) << fiveSailings[i].lrl << "   ";
+            cout << right << setw(HRL_LENGTH) << fiveSailings[i].hrl << "   ";
+            
+            // Calculate and display capacity percentage
+            float percentFull = calculateCapacityPercentage(fiveSailings[i].lcll, fiveSailings[i].hcll, 
+                                                         fiveSailings[i].lrl, fiveSailings[i].hrl);
+            cout << right << setw(PERCENT_LENGTH) << fixed << setprecision(1) << percentFull << "%";
+            cout << resetiosflags(ios::fixed) << setprecision(6) << "\n"; // Reset formatting
+        }
+
+        // prompts the user to enter an option, continues until valid input is received
+        cout << "\n[0] Cancel\n[5] Show next 5\n\nEnter an option: ";
+        int input;
+        bool validInput = false;
+        // Loop goal: Keep prompting until user enters a valid option (0 or 5)
+        while (!validInput)
+        {
+            cin >> input;
+            if (cin.fail() || (input != CANCEL_OPTION && input != 5))
+            {
+                cout << "Invalid option, please enter an option: ";
+                cin.clear();
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+            else
+            {
+                validInput = true;
+                if (input == CANCEL_OPTION)
+                {
+                    reportActive = false;
+                }
+            }
+        }
+        UI::displayFooter();
+    }
+}
+
+// nothing needs to be initialized or shutdown here so these are just to initialize and shutdown file IO.
+void Sailing::initialize()
+{
+    sailingFileIO::openFile();
+}
+void Sailing::shutdown()
+{
+    sailingFileIO::closeFile();
+}
+
+const char *Sailing::getSailingID() const
+{
+    return sailingID;
+}
+
+Sailing Sailing::getSailingFromIO(const char *sid)
+{
+    return sailingFileIO::getSailing(sid);
+}
+
+// functions for updating the lrl and hrl of a specific sailing, subtracts f from lrl or hrl
+bool Sailing::lrlUpdate(float f)
+{
+    if (lrl - f >= 0)
+    {
+        lrl -= f;
+        sailingFileIO::saveSailing(*this);
+        return true;
+    }
+    return false;
+}
+
+float Sailing::lrlRemaining() const
+{
+    return lrl;
+}
+
+bool Sailing::hrlUpdate(float f)
+{
+    if (hrl - f >= 0)
+    {
+        hrl -= f;
+        sailingFileIO::saveSailing(*this);
+        return true;
+    }
+    return false;
+}
+
+float Sailing::hrlRemaining() const
+{
+    return hrl;
+}
+
+// Add these getter function implementations after the existing functions:
+
+const char *Sailing::getVesselID() const {
+    return vesselID;
+}
+
+int Sailing::getLCLL() const {
+    return lcll;
+}
+
+int Sailing::getHCLL() const {
+    return hcll;
+}
+
+float Sailing::getLRL() const {
+    return lrl;
+}
+
+float Sailing::getHRL() const {
+    return hrl;
+}
+
+// private functions
+string Sailing::addDepTerm()
+{
+    bool validEntry = false;
+    const int DEP_TERM_LENGTH = 3;
+    string depTerm;
+    // Loop goal: Keep prompting until user enters a valid 3-character departure terminal
+    while (!validEntry)
+    {
+        cout << "Format: 3-letter terminal code (e.g., TSA, SWB, HGB)\n";
+        cout << "Enter a departure terminal: ";
+
+        cin >> depTerm;
+
+        // departure terminal is represented by 3 characters
+        if (depTerm.length() != DEP_TERM_LENGTH)
+        {
+            cout << "Invalid departure terminal. Must be exactly 3 characters.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+        else
+        {
+            validEntry = true;
+        }
+    }
+    return depTerm;
+}
+
+string Sailing::addDate()
+{
+    bool validEntry = false;
+    const int DATE_LENGTH = 2;
+    string date;
+    // Loop goal: Keep prompting until user enters a valid 2-digit date (01-28)
+    while (!validEntry)
+    {
+        cout << "Format: 2-digit day (01-28, e.g., 01, 15, 28)\n";
+        cout << "Enter a departure date: ";
+
+        cin >> date;
+        // date entered should be two digits to represent the date, month is not relevant
+        if (date.length() != DATE_LENGTH || !std::all_of(date.begin(), date.end(), ::isdigit) || stoi(date) < 0 || stoi(date) > 28)
+        {
+            cout << "Invalid departure date. Must be 2 digits between 01-28.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+        else
+        {
+            validEntry = true;
+        }
+    }
+    return date;
+}
+
+string Sailing::addTime()
+{
+    bool validEntry = false;
+    const int TIME_LENGTH = 2;
+    string time;
+    // Loop goal: Keep prompting until user enters a valid 2-digit time (00-23)
+    while (!validEntry)
+    {
+        cout << "Format: 2-digit hour in 24-hour format (00-23, e.g., 08, 14, 23)\n";
+        cout << "Enter a departure time: ";
+
+        cin >> time;
+        // time entered should be two digits in 24 hour time, can't be below 0 or above 23
+        if (time.length() != TIME_LENGTH || !std::all_of(time.begin(), time.end(), ::isdigit) || stoi(time) < 0 || stoi(time) > 23)
+        {
+            cout << "Invalid departure time. Must be 2 digits between 00-23.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+        else
+        {
+            validEntry = true;
+        }
+    }
+    return time;
+}
+
+string Sailing::addVessel()
+{
+    bool validEntry = false;
+    const int VESSEL_LENGTH = 25;
+    string vessel;
+    // Loop goal: Keep prompting until user enters a valid vessel ID (1-25 characters)
+    while (!validEntry)
+    {
+        cout << "\nVessel ID/Name:\n";
+        cout << "Format: Vessel name or identifier\n";
+        cout << "Guidelines:\n";
+        cout << "  - 1-25 characters maximum\n";
+        cout << "  - Can be name or alphanumeric ID\n";
+        cout << "  - No spaces (use underscore if needed)\n";
+        cout << "  - Examples: CoastalRunner, Island_Voyager, FERRY123, Vessel_01\n";
+        cout << "Enter a vessel ID: ";
+
+        cin >> vessel;
+        // vesselID can be between 1 and 25 characters
+        if (vessel.length() > VESSEL_LENGTH || vessel.length() == 0)
+        {
+            cout << "Invalid vessel ID. Must be 1-25 characters long.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+        else
+        {
+            validEntry = true;
+        }
+    }
+    return vessel;
+}
+
+int Sailing::addLCLL()
+{
+    bool validEntry = false;
+    int lcll;
+    const int LCLL_MAX = 9999;
+
+    // Loop goal: Keep prompting until user enters a valid LCLL value (0-9999)
+    while (!validEntry)
+    {
+        cout << "\nLow Car Length Limit (LCLL):\n";
+        cout << "Format: Maximum length for regular vehicles in meters\n";
+        cout << "Guidelines:\n";
+        cout << "  - Enter as whole number (0-9999)\n";
+        cout << "  - Represents maximum length capacity for regular vehicles\n";
+        cout << "  - Common values: 100, 150, 200, 300, 500\n";
+        cout << "  - Examples: 111 (111 meters), 200 (200 meters)\n";
+        cout << "Enter LCLL: ";
+        cin >> lcll;
+
+        // reprompts user if entered value is not a float or too big/small.
+        // value is converted to DDDD.D form when saved.
+        if (cin.fail() || lcll > LCLL_MAX || lcll < 0)
+        {
+            cout << "Invalid LCLL. Must be a number between 0-9999.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+        else
+        {
+            validEntry = true;
+        }
+    }
+    return lcll;
+}
+
+int Sailing::addHCLL()
+{
+    bool validEntry = false;
+    int hcll;
+    const int HCLL_MAX = 9999;
+
+    // Loop goal: Keep prompting until user enters a valid HCLL value (0-9999)
+    while (!validEntry)
+    {
+        cout << "\nHigh Clearance Lane Limit (HCLL):\n";
+        cout << "Format: Maximum length for special vehicles in meters\n";
+        cout << "Guidelines:\n";
+        cout << "  - Enter as whole number (0-9999)\n";
+        cout << "  - Represents maximum length capacity for special/oversized vehicles\n";
+        cout << "  - Usually higher than LCLL\n";
+        cout << "  - Common values: 200, 300, 500, 1000\n";
+        cout << "  - Examples: 222 (222 meters), 300 (300 meters)\n";
+        cout << "Enter HCLL: ";
+        cin >> hcll;
+
+        // reprompts user if entered value is not a float or too big/small.
+        // value is converted to DDDD.D form when saved.
+        if (cin.fail() || hcll > HCLL_MAX || hcll < 0)
+        {
+            cout << "Invalid HCLL. Must be a number between 0-9999.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+        else
+        {
+            validEntry = true;
+        }
+    }
+    return hcll;
+}
+
+bool Sailing::confirm(int confirmOption)
+{
+    // Loop goal: Keep prompting until user enters valid confirmation choice (cancel or confirm)
+    while (true)
+    {
+        int input;
+        cout << "\n[" << CANCEL_OPTION << "] Cancel\n";
+        cout << "[" << confirmOption << "] Confirm\n\n";
+        cout << "Enter an option: ";
+        cin >> input;
+        if (cin.fail() || (input != CANCEL_OPTION && input != confirmOption))
+        {
+            cout << "Invalid option.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+        else if (input == CANCEL_OPTION)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+    return true;
+}
+
+// Helper function to calculate capacity percentage for sailing reports
+float Sailing::calculateCapacityPercentage(int totalLow, int totalHigh, float remainingLow, float remainingHigh)
+{
+    // Calculate percentage full: (total capacity - remaining capacity) / total capacity * 100
+    double totalCapacity = (double)(totalLow + totalHigh);
+    double remainingCapacity = (double)(remainingLow + remainingHigh);
+    
+    if (totalCapacity <= 0) {
+        return 0.0f; // Avoid division by zero
+    }
+    
+    float percentFull = (float)((totalCapacity - remainingCapacity) / totalCapacity * 100);
+    return percentFull;
+}
+
+void Sailing::createSailing(string line) {
+    // Initialize with empty values first
+    memset(sailingID, 0, sizeof(sailingID));
+    memset(vesselID, 0, sizeof(vesselID));
+    lcll = 0;
+    hcll = 0;
+    lrl = 0.0f;
+    hrl = 0.0f;
+    
+    if (line.empty()) {
+        return;
+    }
+    
+    try {
+        // Parse the line using delimiter '|'
+        vector<string> fields;
+        stringstream ss(line);
+        string field;
+        
+        // Split by delimiter
+        // Loop goal: Parse all fields from the line separated by '|' delimiter
+        while (getline(ss, field, '|')) {
+            fields.push_back(field);
+        }
+        
+        // Need at least 6 fields: sailingID|vesselID|lcll|hcll|lrl|hrl
+        if (fields.size() >= 6) {
+            // Copy sailing ID (max 9 chars + null terminator)
+            strncpy(sailingID, fields[0].c_str(), sizeof(sailingID) - 1);
+            sailingID[sizeof(sailingID) - 1] = '\0';
+            
+            // Copy vessel ID (max 25 chars + null terminator)
+            strncpy(vesselID, fields[1].c_str(), sizeof(vesselID) - 1);
+            vesselID[sizeof(vesselID) - 1] = '\0';
+            
+            // Parse numeric fields
+            lcll = stoi(fields[2]);
+            hcll = stoi(fields[3]);
+            lrl = stof(fields[4]);
+            hrl = stof(fields[5]);
+        }
+    } catch (const exception& e) {
+        cerr << "Error parsing sailing line: " << e.what() << endl;
+        // Reset to empty state on error
+        memset(sailingID, 0, sizeof(sailingID));
+        memset(vesselID, 0, sizeof(vesselID));
+        lcll = 0;
+        hcll = 0;
+        lrl = 0.0f;
+        hrl = 0.0f;
+    }
+}
+
+//-----------------------------------------------------------------------------------------
+// Static method to edit a sailing by sailing ID with validation
+void Sailing::editSailing(const char *sailingID)
+{
+    // Get the sailing object from the file I/O system
+    if (!sailingFileIO::exists(sailingID))
+    {
+        cout << "Sailing with ID " << sailingID << " does not exist.\n";
+        return;
+    }
+    else
+    {
+        Sailing s = Sailing::getSailingFromIO(sailingID);
+        s.editSailing();
+    }
+}
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: sailing.h
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+//   Declares the interface for managing sailings, including
+//   adding, editing, and retrieving sailing records.
+//   Provides functionality for creating sailings, managing their
+//   attributes, and interfacing with the file I/O system for persistence.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - Nathan Miller
+//          - Initial prototype for sailing header file.
+// Rev. 2 - 2025/07/24 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
+//          - Fully debugged final release version.
+//************************************************************
+
+#ifndef SAILING_H
+#define SAILING_H
+
+#include <string>
+using namespace std;
+
+//-----------------------------------------------------------------------------------------
+// Sailing class used to interface with the file io for sailing class as well as create sailings.
+// Also used to navigate through the manage sailings menu.
+class Sailing
+{
+private:
+    // sailingID is used to identify sailings. Formatted terminal-date-hour
+    char sailingID[10];
+    // vesselID represents the name of the vessel used for the sailing
+    char vesselID[26];
+    // the total amount of space for regular vehicles on the vessel.
+    int lcll;
+    // the total amount of space for special vehicles on the vessel.
+    int hcll;
+    // the remaining space for regular vehicles on the vessel.
+    float lrl;
+    // the remaining space for special vehicles on the vessel.
+    float hrl;
+
+    // helper function to handle the departure terminal entry for add sailing
+    static string addDepTerm();
+    // helper function to handle the date entry for add sailing
+    static string addDate();
+    // helper function to handle the time entry for add sailing
+    static string addTime();
+    // helper function to handle the vesselID entry for add sailing
+    static string addVessel();
+    // helper function to handle the LCLL entry for add sailing
+    static int addLCLL();
+    // helper function to handle the HCLL entry for add sailing
+    static int addHCLL();
+    // helper function to prompt the user to confirm the operation they are doing
+    static bool confirm(int confirmInput);
+    // helper function to calculate capacity percentage for sailing reports
+    static float calculateCapacityPercentage(int totalLow, int totalHigh, float remainingLow, float remainingHigh);
+
+public:
+    //-----------------------------------------------------------------------------------------
+    // initializes a sailing object according to user input, returns false if already in database
+    static bool addSailing();
+
+    // creates a sailing using a line in the data file
+    void createSailing(string line);
+
+    //-----------------------------------------------------------------------------------------
+    // opens a sailing to be deleted and/or view the information saved on it
+    void editSailing();
+
+    //-----------------------------------------------------------------------------------------
+    // static method to edit a sailing by sailing ID with validation
+    static void editSailing(const char *sailingID);
+
+    //-----------------------------------------------------------------------------------------
+    // initializes this class as well as opens File I/O for Sailing class
+    static void initialize();
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for the sailing ID
+    const char *getSailingID() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for the vessel ID
+    const char *getVesselID() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for LCLL
+    int getLCLL() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for HCLL
+    int getHCLL() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for LRL
+    float getLRL() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for HRL
+    float getHRL() const;
+
+    //-----------------------------------------------------------------------------------------
+    // used by other classes to access sailings from sailingFileIO
+    static Sailing getSailingFromIO(const char *sid);
+
+    //-----------------------------------------------------------------------------------------
+    // returns the value of the hrl variable
+    float hrlRemaining() const;
+
+    //-----------------------------------------------------------------------------------------
+    // returns the value of the lrl variable
+    float lrlRemaining() const;
+
+    //-----------------------------------------------------------------------------------------
+    // shuts down this class and closes File I/O for Sailing Class
+    static void shutdown();
+
+    //-----------------------------------------------------------------------------------------
+    // decrements the hrl by the specified value, returns false if unable to
+    bool hrlUpdate(
+        float f);
+
+    //-----------------------------------------------------------------------------------------
+    // decrements lrl by the specified value, returns false if unable to
+    bool lrlUpdate(
+        float f);
+
+    //-----------------------------------------------------------------------------------------
+    // interfaces with File I/O for Sailing Class to run the display report menu
+    static void displayReport();
+};
+
+#endif
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: sailingFileIO.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+//   Implements the file I/O operations for the Sailing class,
+//   including opening, closing, reading, writing, and deleting sailings.
+//   Provides functionality for managing sailing records in a binary file format.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/24 - Nathan Miller
+//          - Initial interface for Sailing File I/O.
+// Rev. 2 - 2025/08/01 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
+//          - Fully debugged final release version.
+//************************************************************
+
+
+#include "sailingFileIO.h"
+#include <vector>
+#include <algorithm>
+#include <cstring>
+
+using namespace std;
+
+const string FILE_NAME = "sailingData.dat";
+fstream sailingFileIO::file;
+
+//--------------------------------------------------
+// Binary record structure for Sailing data
+//--------------------------------------------------
+struct SailingRecord {
+    char sailingID[10];    // Sailing ID
+    char vesselID[26];     // Vessel ID
+    int lcll;              // Load car length limit
+    int hcll;              // Height car length limit
+    float lrl;             // Load remaining length
+    float hrl;             // Height remaining length
+};
+
+//--------------------------------------------------
+// Helper functions for binary data serialization
+//--------------------------------------------------
+
+// Convert Sailing object to binary record
+SailingRecord sailingToBinaryRecord(const Sailing& sailing) {
+    SailingRecord record;
+    
+    // Clear the record
+    memset(&record, 0, sizeof(SailingRecord));
+    
+    // Copy data to record
+    strncpy(record.sailingID, sailing.getSailingID(), 9);
+    record.sailingID[9] = '\0';
+    
+    strncpy(record.vesselID, sailing.getVesselID(), 25);
+    record.vesselID[25] = '\0';
+    
+    record.lcll = sailing.getLCLL();
+    record.hcll = sailing.getHCLL();
+    record.lrl = sailing.getLRL();
+    record.hrl = sailing.getHRL();
+    
+    return record;
+}
+
+// Convert binary record to Sailing object
+Sailing binaryRecordToSailing(const SailingRecord& record) {
+    Sailing sailing;
+    
+    // Create a line string for the existing createSailing method
+    string line = string(record.sailingID) + "|" + 
+                  string(record.vesselID) + "|" +
+                  to_string(record.lcll) + "|" +
+                  to_string(record.hcll) + "|" +
+                  to_string(record.lrl) + "|" +
+                  to_string(record.hrl);
+    
+    sailing.createSailing(line);
+    
+    return sailing;
+}
+
+bool sailingFileIO::closeFile()
+{
+    if (file.is_open()) {
+        file.close();
+    }
+    return !file.is_open();
+}
+
+bool sailingFileIO::openFile()
+{
+    file.open(FILE_NAME, ios::in | ios::out | ios::binary);
+    // if opening doesn't work, creates the file
+    if (!file.is_open())
+    {
+        createFile();
+        file.open(FILE_NAME, ios::in | ios::out | ios::binary);
+    }
+    return file.is_open();
+}
+
+void sailingFileIO::reset()
+{
+    file.clear();
+    file.seekg(0);
+}
+
+Sailing sailingFileIO::getSailing(const char *sid)
+{
+    reset();
+    
+    SailingRecord record;
+    while (file.read(reinterpret_cast<char*>(&record), sizeof(SailingRecord))) {
+        if (string(record.sailingID) == string(sid)) {
+            return binaryRecordToSailing(record);
+        }
+    }
+    
+    // Return empty sailing if not found
+    Sailing emptySailing;
+    return emptySailing;
+}
+
+Sailing *sailingFileIO::getNextFive()
+{
+    Sailing *fiveSailings = new Sailing[5];
+    
+    // Initialize all sailings to empty state
+    for (int i = 0; i < 5; i++) {
+        // Create an empty sailing with null-terminated sailingID
+        Sailing emptySailing;
+        // Ensure the sailingID is properly null-terminated to indicate empty
+        memset(&emptySailing, 0, sizeof(Sailing));
+        fiveSailings[i] = emptySailing;
+    }
+    
+    SailingRecord record;
+    for (int i = 0; i < 5; i++) {
+        if (file.read(reinterpret_cast<char*>(&record), sizeof(SailingRecord))) {
+            fiveSailings[i] = binaryRecordToSailing(record);
+        } else {
+            // If we can't read more records, break early
+            break;
+        }
+    }
+    
+    return fiveSailings;
+}
+
+bool sailingFileIO::exists(const char *sid)
+{
+    reset();
+    
+    SailingRecord record;
+    while (file.read(reinterpret_cast<char*>(&record), sizeof(SailingRecord))) {
+        if (string(record.sailingID) == string(sid)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool sailingFileIO::saveSailing(const Sailing s)
+{
+    if (!file.is_open()) {
+        cout << "file not open";
+        return false;
+    }
+    
+    try {
+        SailingRecord record = sailingToBinaryRecord(s);
+        
+        // Check if sailing already exists
+        if (exists(s.getSailingID())) {
+            // Update existing record
+            reset();
+            SailingRecord tempRecord;
+            streampos position = 0;
+            
+            while (file.read(reinterpret_cast<char*>(&tempRecord), sizeof(SailingRecord))) {
+                if (string(tempRecord.sailingID) == string(s.getSailingID())) {
+                    // Found the record, overwrite it
+                    file.seekp(position);
+                    file.write(reinterpret_cast<const char*>(&record), sizeof(SailingRecord));
+                    file.flush();
+                    return true;
+                }
+                position = file.tellg();
+            }
+        } else {
+            // Append new record
+            file.clear();
+            file.seekp(0, ios::end);
+            file.write(reinterpret_cast<const char*>(&record), sizeof(SailingRecord));
+            file.flush();
+            return true;
+        }
+        
+        return false;
+    } catch (const exception& e) {
+        cerr << "Exception in saveSailing: " << e.what() << endl;
+        return false;
+    }
+}
+
+bool sailingFileIO::deleteSailing(const char *sid)
+{
+    if (!file.is_open()) {
+        return false;
+    }
+    
+    try {
+        // Read all records except the one to delete
+        vector<SailingRecord> records;
+        reset();
+        
+        SailingRecord record;
+        while (file.read(reinterpret_cast<char*>(&record), sizeof(SailingRecord))) {
+            if (string(record.sailingID) != string(sid)) {
+                records.push_back(record);
+            }
+        }
+        
+        // Close and reopen file to truncate
+        file.close();
+        file.open(FILE_NAME, ios::out | ios::binary | ios::trunc);
+        
+        // Write back all records except the deleted one
+        for (const auto& rec : records) {
+            file.write(reinterpret_cast<const char*>(&rec), sizeof(SailingRecord));
+        }
+        
+        file.close();
+        
+        // Reopen in read/write mode
+        file.open(FILE_NAME, ios::in | ios::out | ios::binary);
+        
+        return true;
+    } catch (const exception& e) {
+        cerr << "Exception in deleteSailing: " << e.what() << endl;
+        return false;
+    }
+}
+
+void sailingFileIO::truncateFile()
+{
+    // Binary file truncation is handled by the rewrite operations above
+    // No need for special truncation logic
+}
+
+Sailing sailingFileIO::getLast()
+{
+    reset();
+    Sailing last;
+    
+    SailingRecord record;
+    while (file.read(reinterpret_cast<char*>(&record), sizeof(SailingRecord))) {
+        last = binaryRecordToSailing(record);
+    }
+    
+    return last;
+}
+
+void sailingFileIO::createFile()
+{
+    ofstream f(FILE_NAME, ios::binary);
+    f.close();
+}
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: sailingFileIO.h
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/24
+//************************************************************
+// PURPOSE:
+//   Declares the interface for file I/O operations on Sailing //records,
+//   including opening, closing, reading, writing, and deleting //sailings.
+//   Provides functionality for managing sailing records in a //binary file format.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - Nathan Miller
+//          - Initial sailingFileIO header file.
+// Rev. 2 - 2025/07/24 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
+//          - Fully debugged final release version.
+//************************************************************
+
+#ifndef SAILING_FILE_IO_H
+#define SAILING_FILE_IO_H
+
+#include <fstream>
+#include "sailing.h"
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <sstream>
+
+//-------------------------------------------------------------------------------------------------
+// class used to read and write the saved sailings in text format
+class sailingFileIO
+{
+private:
+    // the file in which sailing data is saved to.
+    static std::fstream file;
+    // helper function to create the data file if it does not already exist
+    static void createFile();
+    // helper function for deleting to get the last one
+    static Sailing getLast();
+    // helper function for truncating the file
+    static void truncateFile();
+    // helper function to convert sailing to text line
+    static std::string sailingToString(const Sailing& sailing);
+    // helper function to parse sailing from text line
+    static Sailing parseSailingLine(const std::string& line);
+
+public:
+    
+    //-----------------------------------------------------------------------------------------
+    // closes the file saved, returns false if it is unable to
+    static bool closeFile();
+
+    //-----------------------------------------------------------------------------------------
+    // opens the file saved, returns false if it is unable to
+    static bool openFile();
+
+    //-----------------------------------------------------------------------------------------
+    // resets the file reading, used when displaying a sailing report
+    static void reset();
+
+    //-----------------------------------------------------------------------------------------
+    // checks if the passed sailingID is saved in the database, returns true if it is
+    static bool exists(
+        const char* sid);
+
+    //-----------------------------------------------------------------------------------------
+    // returns the specified sailing from the ID, use exists() to check if it exists first
+    static Sailing getSailing(
+        const char* sid);
+
+    //-----------------------------------------------------------------------------------------
+    // returns up to the next five sailings saved in the database, used for displaying reports.
+    static Sailing *getNextFive();
+
+    //-----------------------------------------------------------------------------------------
+    // enters the specified sailing into the database, returns true if it works.
+    // also handles updates when needed
+    static bool saveSailing(const Sailing s);
+
+    //-----------------------------------------------------------------------------------------
+    // removes the specified sailing from ID into the database, returns true if it work.
+    static bool deleteSailing(const char* sid);
+};
+
+#endif
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: ui.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+// Implements the console-based user interface for the ferry 
+// reservation system.
+// Provides a scrolling, text-based interface accessible to 
+// users with little
+// computer experience. All operations are menu-driven with 
+// step-by-step guidance.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/23 - James Nguyen
+//          - Initial implementation for the user interface
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
+//************************************************************
+
+
+#include "ui.h"
+#include "sailing.h"
+#include "sailingFileIO.h"
+#include "vehicle.h"
+#include "vehicleFileIO.h"
+#include "reservation.h"
+#include "reservationFileIO.h"
+#include <iostream>
+#include <string>
+#include <iomanip>
+#include <limits>
+#include <cctype>
+
+using namespace std;
+
+namespace UI {
+
+    // Validation helper functions
+    bool isValidSailingID(const string &id)
+    {
+        if (id.length() != 9)
+            return false;
+        return isalpha(id[0]) && isalpha(id[1]) && isalpha(id[2]) &&
+               id[3] == '-' &&
+               isdigit(id[4]) && isdigit(id[5]) &&
+               id[6] == '-' &&
+               isdigit(id[7]) && isdigit(id[8]);
+    }
+
+    bool isValidLicensePlate(const std::string &plate)
+    {
+        if (plate.length() == 0 || plate.length() > 10)
+            return false;
+        // Loop goal: Check that every character in license plate is alphanumeric
+        for (char c : plate)
+        {
+            if (!isalnum(c))
+                return false;
+        }
+        return true;
+    }
+
+    bool isValidPhoneNumber(const std::string &phone)
+    {
+        if (phone.length() != 10)
+            return false;
+        // Loop goal: Check that every character in phone number is a digit
+        for (char c : phone)
+        {
+            if (!isdigit(c))
+                return false;
+        }
+        return true;
+    }
+    
+    bool isValidOneDecimalFloat(const std::string &input)
+    {
+        size_t dot = input.find('.');
+        if (dot == std::string::npos)
+            return false; // must contain a dot
+        if (dot == 0 || dot == input.length() - 1)
+            return false; // must have digit before and after
+
+        std::string before = input.substr(0, dot);
+        std::string after = input.substr(dot + 1);
+
+        if (after.length() != 1)
+            return false; // must be exactly 1 digit after the decimal
+
+        // Loop goal: Check that all characters before and after decimal point 
+        //are digits
+        for (char c : before + after)
+        {
+            if (!isdigit(c))
+                return false;
+        }
+
+        return true;
+    }
+
+    // Implementation of UI functions
+    
+    // Clear input buffer and get valid integer input
+    int getValidIntInput(int min, int max) {
+        int choice;
+        // Loop goal: Keep prompting until user enters a valid integer within 
+        // the specified range
+        while (true) {
+            if (cin >> choice && choice >= min && choice <= max) {
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                return choice;
+            } else if (cin.eof()) {
+                // Handle end of input (e.g., when using piped input)
+                return 0; // Default to cancel/exit option
+            } else {
+                cout << "Invalid input. Please enter a number between " << min << " and " << max << ": ";
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            }
+        }
+    }
+
+    // Get string input with cancellation support
+    string getStringInput(const string& prompt, bool allowCancel) {
+        string input;
+        cout << prompt;
+        if (!getline(cin, input)) {
+            // Handle EOF or input stream error
+            return allowCancel ? "CANCEL" : "";
+        }
+        
+        if (allowCancel && (input == "Cancel" || input == "cancel" || input == "0")) {
+            return "CANCEL";
+        }
+        
+        return input;
+    }
+
+    // Display section header
+    void displayHeader(const string& title) {
+        cout << "\n[ " << title << " ] Sample\n";
+        cout << "==============================================================\n";
+    }
+
+    // Display section footer
+    void displayFooter() {
+        cout << "==============================================================\n";
+    }
+
+    // Pause and wait for user to press Enter
+    void pauseForUser() {
+        cout << "Press <Enter> to continue...";
+        cin.ignore();
+    }    // Display sailing management submenu
+    void manageSailingsMenu() {
+        // Loop goal: Keep displaying sailing management menu until user exits
+        while (true) {
+            displayHeader("Manage Sailings");
+            
+            cout << "[0] Cancel\n";
+            cout << "[1] New Sailing\n\n";
+            cout << "Format: Sailing ID (e.g., TSA-15-08, HGB-01-14, SWB-28-23)\n";
+            cout << "Enter a Sailing ID or a command: ";
+            
+            string input;
+            if (!getline(cin, input)) {
+                return; // Handle EOF
+            }
+            displayFooter();
+            
+            if (input == "0" || input == "Cancel" || input == "cancel") {
+                return;
+            } else if (input == "1") {
+                if (addNewSailing()) {
+                    cout << "Sailing Successfully Added. Returning to the main menu.\n";
+                } else {
+                    cout << "Failed to add sailing. Operation cancelled.\n";
+                }
+                pauseForUser();
+            } else if (input.empty()) {
+                // Handle empty input - just continue to show menu again
+                continue;
+            } else {
+                // Assume it's a sailing ID for editing
+                editSailing(input.c_str());
+            }
+        }
+    }
+    
+    // Add new sailing with step-by-step process
+    bool addNewSailing() {
+        // Call the existing Sailing::addSailing() function
+        return Sailing::addSailing();
+    }
+    
+    // Edit sailing interface
+    void editSailing(const char* sailingID) {
+        // Use the static Sailing::editSailing method which includes validation
+        Sailing::editSailing(sailingID);
+    }
+
+    // Display vehicle management submenu
+    void manageVehiclesMenu() {
+        // Loop goal: Keep displaying vehicle management menu until user exits
+        while (true) {
+            displayHeader("Manage Vehicles");
+            
+            // Display existing vehicles from the file I/O system
+            try {
+                FileIOforVehicle vehicleIO;
+                if (vehicleIO.open()) {
+                    vector<Vehicle> vehicles = vehicleIO.getAllVehicles();
+                    
+                    if (!vehicles.empty()) {
+                        int specialCount = 0, regularCount = 0;
+                        // Loop goal: Count and display all vehicles in the system
+                        for (const auto& vehicle : vehicles) {
+                            if (vehicle.isSpecial()) {
+                                specialCount++;
+                            } else {
+                                regularCount++;
+                            }
+                        }
+                        cout << "Total Vehicles: " << vehicles.size() << " (" 
+                             << specialCount << " Special, " << regularCount << " Regular)\n";
+                        cout << "Enter a license plate number to edit a specific vehicle.\n";
+                    } else {
+                        cout << "No vehicles found in the system.\n";
+                    }
+                    vehicleIO.close();
+                } else {
+                    cout << "Unable to access vehicle data.\n";
+                }
+            } catch (...) {
+                cout << "Error accessing vehicle data.\n";
+            }
+            cout << "\n";
+            
+            cout << "[0] Cancel\n";
+            cout << "[1] Add Vehicle\n\n";
+            cout << "Format: License plate to edit (e.g., ABC123, BC1234, XYZ789)\n";
+            cout << "Enter an option or license plate number: ";
+            
+            string input;
+            if (!getline(cin, input)) {
+                return; // Handle EOF
+            }
+            displayFooter();
+            
+            if (input == "0" || input == "Cancel" || input == "cancel") {
+                return;
+            } else if (input == "1") {
+                if (addNewVehicle()) {
+                    cout << "Vehicle Successfully Added. Returning to the main menu.\n";
+                } else {
+                    cout << "Vehicle addition failed or cancelled.\n";
+                }
+                pauseForUser();
+            } else {
+                // Assume it's a license plate for editing
+                editVehicleDetailed(input);
+            }
+        }
+    }
+    
+    // Add new vehicle with step-by-step process
+    bool addNewVehicle() {
+        // Call the existing addVehicleFromUI() function
+        return addVehicleFromUI();
+    }
+    
+    // Edit vehicle interface
+    void editVehicleDetailed(const string& licensePlate) {
+        // Call the existing editVehicleFromUI() function
+        if (editVehicleFromUI(licensePlate)) {
+            cout << "Vehicle successfully updated.\n";
+        } else {
+            cout << "Vehicle edit cancelled or failed.\n";
+        }
+        displayFooter();
+    }
+
+    // Display reservation management submenu
+    void manageReservationsMenu()
+    {
+        // Loop goal: Keep displaying reservation management menu 
+        // until user exits
+        while (true)
+        {
+            displayHeader("Manage Reservations");
+            cout << "[0] Cancel\n";
+            cout << "[1] Check-In\n\n";
+            cout << "Enter an option or sailing ID: ";
+
+            string input;
+            if (!getline(cin, input))
+                return;
+            displayFooter();
+
+            if (input == "0" || input == "Cancel" || input == "cancel")
+                return;
+            else if (input == "1")
+            {
+                checkInProcess();
+            }
+            else if (input.empty())
+            {
+                // Handle empty input - just continue to show menu again
+                continue;
+            }
+            else if (isValidSailingID(input))
+            {
+                manageReservationsForSailing(input.c_str());
+            }
+            else
+            {
+                cout << "Invalid Sailing ID format. Must be AAA-NN-NN (e.g., ABC-01-23).\n";
+                pauseForUser();
+            }
+        }
+    }
+    
+    // Add new reservation process
+    bool addNewReservation(const char *sailingID)
+    {
+        string license;
+        do
+        {
+            displayHeader("Add Reservation");
+            cout << "[0] Cancel\n\n";
+            cout << "Format: Alphanumeric license plate (max 10 characters)\n";
+            license = getStringInput("Enter an option or license plate: ");
+            displayFooter();
+
+            if (license == "CANCEL")
+                return false;
+            if (!isValidLicensePlate(license))
+            {
+                cout << "Invalid license plate. Must be alphanumeric and ≤ 10 characters.\n";
+                pauseForUser();
+            }
+        } while (!isValidLicensePlate(license));
+
+        string phone;
+        do
+        {
+            displayHeader("Add Reservation");
+            cout << "License Plate Number: " << license << "\n\n";
+            cout << "[0] Cancel\n\n";
+            cout << "Format: 10-digit phone number (e.g., 2501234567)\n";
+            phone = getStringInput("Enter an option or phone number: ");
+            displayFooter();
+
+            if (phone == "CANCEL")
+                return false;
+            if (!isValidPhoneNumber(phone))
+            {
+                cout << "Invalid phone number. Must be exactly 10 digits.\n";
+                pauseForUser();
+            }
+        } while (!isValidPhoneNumber(phone));
+
+        bool vehicleExists = false;
+        float height = 0.0f, length = 0.0f;
+        bool isSpecial = false;
+
+        try
+        {
+            FileIOforVehicle vehicleIO;
+            if (vehicleIO.open() && vehicleIO.exists(license))
+            {
+                Vehicle vehicle = vehicleIO.getVehicle(license);
+                vehicleExists = true;
+                isSpecial = vehicle.isSpecial();
+                height = vehicle.getHeight();
+                length = vehicle.getLength();
+            }
+        }
+        catch (...)
+        {
+        }
+
+        if (!vehicleExists)
+        {
+            // Prompt for height
+            string heightStr;
+            do
+            {
+                displayHeader("Add Reservation");
+                cout << "License Plate: " << license << "\n";
+                cout << "Phone Number: " << phone << "\n\n";
+                cout << "[0] Cancel\n\n";
+                cout << "Format: Height in meters (e.g., 2.5, 3.0, 4.2)\n";
+                heightStr = getStringInput("Enter an option or vehicle height: ", true);
+                displayFooter();
+
+                if (heightStr == "CANCEL")
+                    return false;
+                if (!isValidOneDecimalFloat(heightStr))
+                {
+                    cout << "Invalid height. Must be a number with exactly 1 decimal place.\n";
+                    pauseForUser();
+                }
+            } while (!isValidOneDecimalFloat(heightStr));
+            height = stof(heightStr);
+
+            string lengthStr;
+            do
+            {
+                displayHeader("Add Reservation");
+                cout << "License Plate: " << license << "\n";
+                cout << "Phone Number: " << phone << "\n";
+                cout << "Vehicle Height: " << fixed << setprecision(1) << height << "\n\n";
+                cout << "[0] Cancel\n\n";
+                cout << "Format: Length in meters (e.g., 5.5, 12.0, 18.5)\n";
+                lengthStr = getStringInput("Enter an option or vehicle length: ", true);
+                displayFooter();
+
+                if (lengthStr == "CANCEL")
+                    return false;
+                if (!isValidOneDecimalFloat(lengthStr))
+                {
+                    cout << "Invalid length. Must be a number with exactly 1 decimal place.\n";
+                    pauseForUser();
+                }
+            } while (!isValidOneDecimalFloat(lengthStr));
+            length = stof(lengthStr);
+
+            // Determine if special based on rules
+            isSpecial = (height > 2.0f || length > 7.0f);
+
+            // Add to database
+            try
+            {
+                Vehicle newVehicle;
+                newVehicle.addVehicle(license.c_str(), phone.c_str(), length, height);
+            }
+            catch (...)
+            {
+            }
+        }
+
+        displayHeader("Add Reservation");
+        cout << "Phone Number: " << phone << "\n";
+        cout << "License Plate: " << license << "\n";
+        cout << "Vehicle Height: " << height << "\n";
+        cout << "Vehicle Length: " << length << "\n\n";
+        cout << "[0] Cancel\n[1] Add Reservation\n\n";
+        cout << "Enter an option: ";
+
+        int choice = getValidIntInput(0, 1);
+        displayFooter();
+
+        if (choice == 1)
+        {
+            try
+            {
+                return addReservation(string(sailingID), license, phone, isSpecial, height, length);
+            }
+            catch (...)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // Edit/Delete reservation
+    void editReservation(const char *sailingID, const string &licensePlate)
+    {
+        displayHeader("Edit Reservation");
+        cout << "Sailing ID: " << sailingID << "\n";
+        cout << "License Plate: " << licensePlate << "\n";
+        try
+        {
+            FileIOforVehicle vehicleIO;
+            if (vehicleIO.open() && vehicleIO.exists(licensePlate))
+            {
+                Vehicle v = vehicleIO.getVehicle(licensePlate);
+                cout << (v.isSpecial() ? "Special Vehicle" : "Regular Vehicle") << "\n\n";
+                vehicleIO.close();
+            }
+            else
+            {
+                cout << "Regular Vehicle\n\n"; // fallback
+            }
+        }
+        catch (...)
+        {
+            cout << "Regular Vehicle\n\n"; // fallback in case of error
+        }
+    while (true)
+    {
+        cout << "[0] Cancel\n[9] Delete Reservation\n\n";
+        cout << "Enter an option: ";
+        int choice = getValidIntInput(0, 9);
+        displayFooter();
+
+        if (choice == 0)
+        {
+            cout << "No changes made. Returning to the previous menu.\n";
+            break;
+        }
+        else if (choice == 9)
+        {
+            // Before deleting, determine if it's a special vehicle to restore capacity correctly
+            bool isSpecial = false;
+            try {
+                FileIOforVehicle vehicleIO;
+                if (vehicleIO.open() && vehicleIO.exists(licensePlate)) {
+                    Vehicle vehicle = vehicleIO.getVehicle(licensePlate);
+                    isSpecial = vehicle.isSpecial();
+                    vehicleIO.close();
+                }
+            } catch (...) {
+                isSpecial = false; // Default to regular vehicle
+            }
+            
+            if (deleteReservation(licensePlate, sailingID))
+            {
+                // Restore sailing capacity after successful deletion
+                try {
+                    Sailing sailing = Sailing::getSailingFromIO(sailingID);
+                    if (isSpecial) {
+                        // Restore 1 unit of HRL for special vehicle  
+                        sailing.hrlUpdate(-1.0f); // Negative to add back capacity
+                    } else {
+                        // Restore 1 unit of LRL for regular vehicle
+                        sailing.lrlUpdate(-1.0f); // Negative to add back capacity
+                    }
+                    // Save the updated sailing capacity to file
+                    sailingFileIO::saveSailing(sailing);
+                } catch (...) {
+                    // Capacity restoration failed, but deletion succeeded
+                }
+                
+                cout << "Reservation Successfully Deleted.\nReturning to the previous menu.\n";
+            }
+            else
+                cout << "Error: Could not delete reservation.\n";
+            break;
+        }
+        else
+        {
+            cout << "Invalid option. Please enter 0 or 9.\n";
+            pauseForUser(); // optional: add pause between retries
+        }
+    }
+
+    displayFooter();
+}    // Check-in process
+    void checkInProcess()
+{
+    displayHeader("Manage Reservations");
+    cout << "[0] Cancel\n\n";
+    cout << "Format: Sailing ID (e.g., ABC-01-09, DEF-02-10)\n";
+    string sailingID = getStringInput("Enter an option or sailing ID: ");
+    if (sailingID == "CANCEL")
+        return;
+    displayFooter();
+
+    vector<ReservationRecord> records = getAllOnSailing(sailingID);
+
+    // Check if any non-checked-in reservations exist
+    bool hasValid = false;
+    for (const auto &r : records) {
+        if (!r.onboard) {
+            hasValid = true;
+            break;
+        }
+    }
+
+    if (!hasValid) {
+        cout << "No reservations found for this sailing, \nor all are already checked-in.\n";
+        pauseForUser();
+        return;
+    }
+
+    displayHeader("Manage Reservation");
+
+    FileIOforVehicle vehicleIO;
+    vehicleIO.open();
+
+    for (const auto &r : records)
+    {
+        if (!r.onboard)
+        {
+            string phone = "Unknown";
+            string type = "Rg Vehicle";
+
+            try
+            {
+                if (vehicleIO.exists(r.licensePlate))
+                {
+                    Vehicle v = vehicleIO.getVehicle(r.licensePlate);
+                    phone = v.getPhone();
+                    if (v.isSpecial())
+                        type = "Sp Vehicle";
+                }
+            }
+            catch (...) {}
+
+            cout << r.licensePlate << " - " << phone << " - " << type << "\n";
+        }
+    }
+
+    vehicleIO.close();
+
+    cout << "\n[0] Cancel\n\n";
+    string license = getStringInput("Enter an option or license plate: ");
+    if (license == "CANCEL")
+        return;
+    displayFooter();
+
+    // Ensure license is part of an existing non-onboard reservation
+    bool matchFound = false;
+    for (const auto &r : records) {
+        if (r.licensePlate == license && !r.onboard) {
+            matchFound = true;
+            break;
+        }
+    }
+
+    if (!matchFound) {
+        cout << "License plate not found or already checked-in. \nReturning to the previous menu.\n";
+        pauseForUser();
+        return;
+    }
+
+    displayHeader("Check-In");
+    cout << "Sailing ID: " << sailingID << "\n";
+    cout << "License Plate: " << license << "\n";
+
+    bool isSpecial = false;
+    float height = 0.0f, length = 0.0f;
+
+    try
+    {
+        if (vehicleIO.open() && vehicleIO.exists(license))
+        {
+            Vehicle v = vehicleIO.getVehicle(license);
+            isSpecial = v.isSpecial();
+            height = v.getHeight();
+            length = v.getLength();
+            cout << (isSpecial ? "Special Vehicle" : "Regular Vehicle") << "\n\n";
+            vehicleIO.close();
+        }
+        else {
+            cout << "Regular Vehicle\n\n"; // fallback
+        }
+    }
+    catch (...)
+    {
+        cout << "Regular Vehicle\n\n"; // fallback
+    }
+
+    cout << "[0] Cancel\n[1] Confirm Check-in\n\n";
+    cout << "Enter a line number: ";
+
+    int choice = getValidIntInput(0, 9);
+    displayFooter();
+
+    switch (choice)
+    {
+    case 1:
+    {
+        float fare = checkIn(sailingID, license, isSpecial, height, length);
+
+        if (fare < 0)
+            cout << "Reservation not found. Check-in failed.\n";
+        else
+            cout << "Customer successfully checked-in. Fare: $" << fixed << setprecision(2) << fare << ".\nReturning to the previous menu.\n";
+        break;
+    }
+    default:
+        cout << "No changes made. Returning to the previous menu.\n";
+    }
+
+    displayFooter();
+}
+
+// Display sailing report
+void showSailingReport() {
+    displayHeader("Sailing Report");
+    
+    // Call the existing sailing report function
+    Sailing::displayReport();
+    
+    displayFooter();
+    pauseForUser();
+}
+
+    // Public interface implementation
+    
+    // Manage reservations for a specific sailing
+    void manageReservationsForSailing(const char* sailingID) {
+        while (true) {
+            displayHeader("Manage Reservations");
+            
+            // Display existing reservations for this sailing from actual data
+            try {
+                vector<ReservationRecord> reservations = getAllOnSailing(sailingID);
+                cout << "Reservations for Sailing " << sailingID << ":\n";
+                
+                if (reservations.empty()) {
+                    cout << "  No reservations found for this sailing.\n\n";
+                } else {
+                    cout << "  License Plate    Phone Number     Status\n";
+                    cout << "  ---------------  ---------------  ----------\n";
+                    
+                    FileIOforVehicle vehicleIO;
+                    bool vehicleIOOpen = vehicleIO.open();
+                    
+                    for (const auto& res : reservations) {
+                        string phoneNumber = "N/A";
+                        
+                        // Get vehicle details for phone number
+                        if (vehicleIOOpen && vehicleIO.exists(res.licensePlate)) {
+                            Vehicle vehicle = vehicleIO.getVehicle(res.licensePlate);
+                            phoneNumber = vehicle.getPhone();
+                        }
+                        
+                        cout << "  " << left << setw(15) << res.licensePlate 
+                             << "  " << setw(15) << phoneNumber
+                             << "  " << (res.onboard ? "On Board" : "Reserved") << "\n";
+                    }
+                    
+                    if (vehicleIOOpen) {
+                        vehicleIO.close();
+                    }
+                    cout << "\n";
+                }
+            } catch (...) {
+                cout << "Error accessing reservation data.\n\n";
+            }
+            
+            cout << "[0] Cancel\n";
+            cout << "[1] New Reservation\n\n";
+            cout << "Enter an option or license plate: ";
+            
+            string input;
+            if (!getline(cin, input)) {
+                // Handle EOF - exit menu
+                return;
+            }
+            displayFooter();
+            
+            if (input == "0" || input == "Cancel" || input == "cancel") {
+                return;
+            } else if (input == "1") {
+                if (addNewReservation(sailingID)) {
+                    cout << "Reservation Successfully Added. Returning to the main menu.\n";
+                    pauseForUser();
+                }
+            } else if (input.empty()) {
+                // Handle empty input - just continue to show menu again
+                continue;
+            } else if (isValidLicensePlate(input)) {
+                // Check if this license plate has a reservation for this sailing
+                vector<ReservationRecord> reservations = getAllOnSailing(sailingID);
+                bool found = false;
+                for (const auto& res : reservations) {
+                    if (res.licensePlate == input) {
+                        editReservation(sailingID, input);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    cout << "No reservation found for license plate " << input 
+                         << " on sailing " << sailingID << ".\n";
+                    pauseForUser();
+                }
+            } else {
+                cout << "Invalid input. Please enter 0, 1, or a valid license plate.\n";
+                pauseForUser();
+            }
+        }
+    }
+
+    bool initialize() {
+        cout << "Initializing Ferry Reservation System...\n";
+        
+        try {
+            // Initialize sailing module
+            Sailing::initialize();
+            
+            // Initialize reservation module
+            ::initialize(); // Call global initialize function from reservation.h
+            
+            cout << "System initialized successfully.\n";
+            return true;
+        } catch (const exception& e) {
+            cerr << "Initialization failed: " << e.what() << "\n";
+            return false;
+        }
+    }
+
+    void mainMenu() {
+        cout << "\nWelcome to the Ferry Reservation System\n";
+        cout << "========================================\n";
+        cout << "This system operates through numbered menus.\n";
+        cout << "Type a number and press <Enter> to select an option.\n";
+        cout << "Type 0 or 'Cancel' to go back at any time.\n\n";
+        
+        while (true) {
+            displayHeader("Main Menu");
+            cout << "[1] Manage Sailings\n";
+            cout << "[2] Manage Vehicles\n";
+            cout << "[3] Manage Reservations\n";
+            cout << "[4] Show Sailing Report\n";
+            cout << "[0] Exit System\n\n";
+            cout << "Enter a menu: ";
+            
+            int choice = getValidIntInput(0, 4);
+            displayFooter();
+            
+            switch (choice) {
+                case 1:
+                    manageSailingsMenu();
+                    break;
+                case 2:
+                    manageVehiclesMenu();
+                    break;
+                case 3:
+                    manageReservationsMenu();
+                    break;
+                case 4:
+                    showSailingReport();
+                    break;
+                case 0:
+                    cout << "Thank you for using the Ferry Reservation System.\n";
+                    cout << "Goodbye!\n";
+                    return;
+            }
+        }
+    }
+
+    void shutdown() {
+        cout << "Shutting down Ferry Reservation System...\n";
+        
+        try {
+            // Shutdown sailing module
+            Sailing::shutdown();
+            
+            // Shutdown reservation module
+            ::shutdown(); // Call global shutdown function from reservation.h
+            
+            cout << "System shutdown complete.\n";
+        } catch (const exception& e) {
+            cerr << "Error during shutdown: " << e.what() << "\n";
+        }
+    }
+
+} // namespace UI
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: ui.h
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+// Declares the interface for the console-based user interface,
+// including initialization, main menu loop, and shutdown.
+// Connects Sailing, Vehicle, and Reservation modules through
+// a user-friendly text-based interface with step-by-step guidance.
+//************************************************************
+// USAGE:
+// - Call UI::initialize() at program start (e.g., from main.cpp).
+// - Call UI::mainMenu() to display options and handle user input.
+// - Call UI::shutdown() before program exit.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - James Nguyen
+//          - Initial draft for interface specification.
+// Rev. 2 - 2025/07/23 - James Nguyen
+//          - Integrated UI with real module functionality and
+//            added user-friendly prompts and error handling.
+//          - Added helper functions for input validation and
+//            user interaction.
+//          - Updated for integrated UI with real module 
+// integration.
+// Rev. 3 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp 
+// implementation.
+//************************************************************
+// in: Represents input parameter
+// out: Represents output parameter
+//************************************************************
+
+
+#ifndef UI_H
+#define UI_H
+
+#include "sailing.h"
+#include "vehicle.h"
+#include "vehicleFileIO.h"
+#include "reservation.h"
+#include <string>
+
+using namespace std;
+
+// Namespace UI: console-based user interface controller
+namespace UI {
+
+    // initialize
+    // Sets up modules and loads initial data.
+    // Initializes sailing and reservation modules.
+    // Returns true if successful, false if initialization fails.
+    // out: bool - success status
+    bool initialize();
+
+    // mainMenu
+    // Displays the main menu and processes user commands until exit is selected.
+    // Provides access to sailing, vehicle, reservation management, and reports.
+    // Features numbered menu navigation with user-friendly prompts.
+    // in: none
+    // out: none
+    void mainMenu();
+
+    // shutdown
+    // Saves any pending changes and cleans up resources.
+    // Calls shutdown methods for sailing and reservation modules.
+    // out: none
+    void shutdown();
+
+    // manageReservationsForSailing
+    // Manages reservations for a specific sailing ID.
+    // Called from sailing module when editing sailings.
+    // in: sailingID - the sailing ID to manage reservations for
+    // out: none
+    void manageReservationsForSailing(const char* sailingID);
+
+    // Additional UI functions made public
+    
+    // addNewSailing
+    // Adds a new sailing to the system with user input
+    // out: bool - true if sailing was successfully added, false if cancelled
+    bool addNewSailing();
+    
+    // editSailing
+    // Edits an existing sailing with the given ID
+    // in: sailingID - the ID of the sailing to edit
+    // out: none
+    void editSailing(const char* sailingID);
+    
+    // addNewVehicle
+    // Adds a new vehicle to the system with user input
+    // out: bool - true if vehicle was successfully added, false if cancelled
+    bool addNewVehicle();
+    
+    // editVehicleDetailed
+    // Edits an existing vehicle with the given license plate
+    // in: licensePlate - the license plate of the vehicle to edit
+    // out: none
+    void editVehicleDetailed(const string& licensePlate);
+    
+    // addNewReservation
+    // Adds a new reservation for the specified sailing
+    // in: sailingID - the sailing ID to add reservation for
+    // out: bool - true if reservation was successfully added, false if cancelled
+    bool addNewReservation(const char* sailingID);
+    
+    // editReservation
+    // Edits or deletes a reservation for the specified sailing and license plate
+    // in: sailingID - the sailing ID
+    // in: licensePlate - the license plate of the reservation
+    // out: none
+    void editReservation(const char* sailingID, const string& licensePlate);
+    
+    // checkInProcess
+    // Handles the check-in process for reservations
+    // out: none
+    void checkInProcess();
+    
+    // showSailingReport
+    // Displays a comprehensive sailing report
+    // out: none
+    void showSailingReport();
+    
+    // manageSailingsMenu
+    // Displays and handles the sailing management submenu
+    // out: none
+    void manageSailingsMenu();
+    
+    // manageVehiclesMenu
+    // Displays and handles the vehicle management submenu
+    // out: none
+    void manageVehiclesMenu();
+    
+    // manageReservationsMenu
+    // Displays and handles the reservation management submenu
+    // out: none
+    void manageReservationsMenu();
+    
+    // displayHeader
+    // Displays a formatted section header
+    // in: title - the title to display in the header
+    // out: none
+    void displayHeader(const string& title);
+    
+    // displayFooter
+    // Displays a formatted section footer
+    // out: none
+    void displayFooter();
+    
+    // getValidIntInput
+    // Gets valid integer input from user within specified range
+    // in: min - minimum allowed value (default 0)
+    // in: max - maximum allowed value (default 9)
+    // out: int - the valid integer input
+    int getValidIntInput(int min = 0, int max = 9);
+    
+    // getStringInput
+    // Gets string input from user with optional cancellation support
+    // in: prompt - the prompt to display to user
+    // in: allowCancel - whether to allow cancellation (default true)
+    // out: string - the user input or "CANCEL" if cancelled
+    string getStringInput(const string& prompt, bool allowCancel = true);
+    
+    // pauseForUser
+    // Pauses execution and waits for user to press Enter
+    // out: none
+    void pauseForUser();
+
+} // namespace UI
+
+#endif // UI_H
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: vehicle.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System 
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+// Implements the Vehicle class interface for managing vehicle // records,
+// including creation, editing, and classification.
+// Handles vehicle data validation and persistence through 
+// FileIO.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - James Nguyen
+//          - Initial implementation for vehicle class.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
+//************************************************************
+
+
+#include "vehicle.h"
+#include "vehicleFileIO.h"
+#include <iostream>
+#include <cstring>
+#include <iomanip>
+#include <limits>
+
+using namespace std;
+
+std::string Vehicle::getPhone() const {
+    return std::string(phone);
+}
+
+
+//--------------------------------------------------
+// Static FileIO instance for vehicle persistence
+//--------------------------------------------------
+static FileIOforVehicle vehicleFileIO;
+
+//--------------------------------------------------
+// Helper functions for input validation and user interface
+//--------------------------------------------------
+namespace {
+    
+    // Get valid string input with length constraints
+    string getValidStringInput(const string& prompt, int maxLength, bool allowCancel = true) {
+        string input;
+        // Loop goal: Keep prompting until user provides valid string input within length constraints
+        while (true) {
+            cout << prompt;
+            getline(cin, input);
+            
+            if (allowCancel && (input == "Cancel" || input == "cancel" || input == "0")) {
+                return "CANCEL";
+            }
+            
+            // Fix: Cast maxLength to size_t to match string::length() return type
+            if (input.length() > 0 && input.length() <= static_cast<size_t>(maxLength)) {
+                return input;
+            }
+            
+            cout << "Invalid input. Please enter 1-" << maxLength << " characters: ";
+        }
+    }
+    
+    // Get valid float input with range validation
+    float getValidFloatInput(const string& prompt, float min = 0.1f, float max = 20.0f) {
+        float value;
+        // Loop goal: Keep prompting until user provides valid float within specified range
+        while (true) {
+            cout << prompt;
+            if (cin >> value && value >= min && value <= max) {
+                cin.ignore();
+                return value;
+            }
+            
+            cout << "Invalid input. Please enter a value between " << min << " and " << max << ": ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+    
+    // Display confirmation screen for vehicle data
+    bool confirmVehicleData(const char* licence, const char* phone, float length, float height, bool isSpecial) {
+        cout << "\n[ Confirm Vehicle ] Sample\n";
+        cout << "==============================================================\n";
+        cout << "License Plate: " << licence << "\n";
+        cout << "Phone Number: " << phone << "\n";
+        cout << "Length: " << fixed << setprecision(1) << length << "m\n";
+        cout << "Height: " << fixed << setprecision(1) << height << "m\n";
+        cout << "Vehicle Type: " << (isSpecial ? "Special" : "Regular") << "\n\n";
+        cout << "[0] Cancel\n";
+        cout << "[1] Confirm\n\n";
+        cout << "Enter an option: ";
+        
+        int choice;
+        // Loop goal: Keep prompting until user enters valid confirmation choice (0 or 1)
+        while (true) {
+            if (cin >> choice && (choice == 0 || choice == 1)) {
+                cin.ignore();
+                cout << "==============================================================\n";
+                return (choice == 1);
+            }
+            
+            cout << "Invalid choice. Enter 0 to cancel or 1 to confirm: ";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+    
+} // end anonymous namespace
+
+//--------------------------------------------------
+// Vehicle class implementation
+//--------------------------------------------------
+
+void Vehicle::initialize(
+    const char* newLicence,
+    const char* newPhone,
+    float newLength,
+    float newHeight
+) {
+    // Copy license plate (max 10 chars)
+    strncpy(licence, newLicence, 10);
+    licence[10] = '\0';
+    
+    // Copy phone number (max 14 chars)
+    strncpy(phone, newPhone, 14);
+    phone[14] = '\0';
+    
+    // Set dimensions
+    length = newLength;
+    height = newHeight;
+    
+    // Determine if special vehicle (height > 2.0m OR length > 7.0m)
+    special = (height > 2.0f || length > 7.0f);
+}
+
+void Vehicle::shutdown() {
+    // Clear sensitive data
+    memset(licence, 0, sizeof(licence));
+    memset(phone, 0, sizeof(phone));
+    length = 0.0f;
+    height = 0.0f;
+    special = false;
+}
+
+void Vehicle::addVehicle(
+    const char* newLicence,
+    const char* newPhone,
+    float newLength,
+    float newHeight
+) {
+    // Initialize the vehicle with provided data
+    initialize(newLicence, newPhone, newLength, newHeight);
+    
+    // Save to file through FileIO
+    if (!vehicleFileIO.open()) {
+        cout << "Error: Unable to open vehicle database.\n";
+        return;
+    }
+    
+    // Check if vehicle already exists
+    if (vehicleFileIO.exists(string(newLicence))) {
+        cout << "Error: Vehicle with license plate " << newLicence << " already exists.\n";
+        vehicleFileIO.close();
+        return;
+    }
+    
+    // Save the vehicle with complete data
+    if (vehicleFileIO.saveVehicleWithData(*this, string(newLicence), string(newPhone))) {
+        cout << "Vehicle successfully added to database.\n";
+    } else {
+        cout << "Error: Failed to save vehicle to database.\n";
+    }
+    
+    vehicleFileIO.close();
+}
+
+void Vehicle::editVehicle(
+    const char* newLicence,
+    const char* newPhone,
+    float newLength,
+    float newHeight
+) {
+    // Store old license for database update
+    string oldLicence = string(licence);
+    
+    // Update vehicle data
+    initialize(newLicence, newPhone, newLength, newHeight);
+    
+    // Update in file through FileIO
+    if (!vehicleFileIO.open()) {
+        cout << "Error: Unable to open vehicle database.\n";
+        return;
+    }
+    
+    // Save the updated vehicle with complete data
+    if (vehicleFileIO.saveVehicleWithData(*this, string(newLicence), string(newPhone))) {
+        cout << "Vehicle successfully updated in database.\n";
+    } else {
+        cout << "Error: Failed to update vehicle in database.\n";
+    }
+    
+    vehicleFileIO.close();
+}
+
+bool Vehicle::isSpecial() const {
+    return special;
+}
+
+float Vehicle::getLength() const {
+    return length;
+}
+
+float Vehicle::getHeight() const {
+    return height;
+}
+
+//--------------------------------------------------
+// Static utility functions for vehicle management UI
+//--------------------------------------------------
+
+// Function to handle adding a vehicle through user interface
+bool addVehicleFromUI() {
+    cout << "\n[ Add Vehicle ] Sample\n";
+    cout << "==============================================================\n";
+    
+    // Get license plate
+    cout << "\nVehicle License Plate:\n";
+    cout << "Format: Alphanumeric license plate (e.g., ABC123, BC1234, 7XYZ890)\n";
+    cout << "Guidelines:\n";
+    cout << "  - Mix of letters and numbers\n";
+    cout << "  - 1-10 characters maximum\n";
+    cout << "  - No spaces or special characters\n";
+    cout << "  - Examples: BC1234, ABC123, 7XYZ890, QWE456\n";
+    string licenceStr = getValidStringInput("License Plate: ", 10);
+    if (licenceStr == "CANCEL") {
+        cout << "Operation cancelled.\n";
+        return false;
+    }
+    
+    // Check if vehicle already exists
+    if (!vehicleFileIO.open()) {
+        cout << "Error: Unable to access vehicle database.\n";
+        return false;
+    }
+    
+    if (vehicleFileIO.exists(licenceStr)) {
+        cout << "Error: Vehicle with license plate " << licenceStr << " already exists.\n";
+        vehicleFileIO.close();
+        return false;
+    }
+    vehicleFileIO.close();
+    
+    // Get phone number
+    cout << "\nPhone Number:\n";
+    cout << "Format: Phone number with area code\n";
+    cout << "Guidelines:\n";
+    cout << "  - Include area code (3 digits)\n";
+    cout << "  - 10 digits total (North American format)\n";
+    cout << "  - Can include dashes or be all digits\n";
+    cout << "  - Examples: 604-555-1234, 2501234567, 778-999-0000\n";
+    string phoneStr = getValidStringInput("Phone Number: ", 14);
+    if (phoneStr == "CANCEL") {
+        cout << "Operation cancelled.\n";
+        return false;
+    }
+    
+    // Ask if vehicle is special or regular
+    cout << "\nVehicle Type:\n";
+    cout << "[1] Regular Vehicle (7.0m length x 2.0m height)\n";
+    cout << "[2] Special Vehicle (custom dimensions)\n";
+    cout << "[0] Cancel\n\n";
+    
+    int vehicleType;
+    // Loop goal: Keep prompting until user selects a valid vehicle type option (0, 1, or 2)
+    while (true) {
+        cout << "Select vehicle type (0-2): ";
+        if (cin >> vehicleType && vehicleType >= 0 && vehicleType <= 2) {
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            break;
+        } else {
+            cout << "Invalid input. Please enter 0, 1, or 2.\n";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+    }
+    
+    if (vehicleType == 0) {
+        cout << "Operation cancelled.\n";
+        return false;
+    }
+    
+    float length, height;
+    bool isSpecial;
+    
+    if (vehicleType == 1) {
+        // Regular vehicle - use default dimensions
+        length = 7.0f;
+        height = 2.0f;
+        isSpecial = false;
+        cout << "Using regular vehicle dimensions: 7.0m length x 2.0m height\n";
+    } else {
+        // Special vehicle - get custom dimensions (no upper limit)
+        cout << "\nSpecial Vehicle Custom Dimensions:\n";
+        cout << "Guidelines:\n";
+        cout << "  - Enter dimensions in meters (decimal format)\n";
+        cout << "  - Special vehicles: length > 7.0m OR height > 2.0m\n";
+        cout << "  - Use decimal point for precision (e.g., 12.5, 4.2)\n";
+        cout << "  - No upper limit for special vehicles\n";
+        cout << "  - Examples: 15.5, 4.2, 60.0, 8.1\n\n";
+        
+        cout << "Vehicle Length:\n";
+        cout << "Format: Decimal number in meters (e.g., 15.5, 60.0, 8.1)\n";
+        length = getValidFloatInput("Vehicle Length (meters, min 0.1): ", 0.1f, numeric_limits<float>::max());
+        
+        cout << "\nVehicle Height:\n";
+        cout << "Format: Decimal number in meters (e.g., 4.2, 2.5, 6.0)\n";
+        height = getValidFloatInput("Vehicle Height (meters, min 0.1): ", 0.1f, numeric_limits<float>::max());
+        
+        // Verify it's actually a special vehicle
+        isSpecial = (height > 2.0f || length > 7.0f);
+        if (!isSpecial) {
+            cout << "Warning: Dimensions entered qualify as regular vehicle, but will be treated as special.\n";
+            isSpecial = true; // Force as special since user selected it
+        }
+    }
+    
+    // Show confirmation screen
+    if (confirmVehicleData(licenceStr.c_str(), phoneStr.c_str(), length, height, isSpecial)) {
+        Vehicle vehicle;
+        vehicle.addVehicle(licenceStr.c_str(), phoneStr.c_str(), length, height);
+        return true;
+    } else {
+        cout << "Vehicle addition cancelled.\n";
+        return false;
+    }
+}
+
+// Function to handle editing a vehicle through user interface
+bool editVehicleFromUI(const string& licencePlate) {
+    if (!vehicleFileIO.open()) {
+        cout << "Error: Unable to access vehicle database.\n";
+        return false;
+    }
+    
+    if (!vehicleFileIO.exists(licencePlate)) {
+        cout << "Error: Vehicle with license plate " << licencePlate << " not found.\n";
+        vehicleFileIO.close();
+        return false;
+    }
+    
+    // Get existing vehicle with complete data
+    Vehicle vehicle;
+    string currentPhone;
+    if (!vehicleFileIO.getVehicleWithData(licencePlate, vehicle, currentPhone)) {
+        cout << "Error: Unable to retrieve vehicle data.\n";
+        vehicleFileIO.close();
+        return false;
+    }
+    vehicleFileIO.close();
+    
+    cout << "\n[ Edit Vehicle ] Sample\n";
+    cout << "==============================================================\n";
+    cout << "Current Vehicle Information:\n";
+    cout << "License Plate: " << licencePlate << "\n";
+    cout << "Phone Number: " << currentPhone << "\n";
+    cout << "Length: " << fixed << setprecision(1) << vehicle.getLength() << "m\n";
+    cout << "Height: " << fixed << setprecision(1) << vehicle.getHeight() << "m\n";
+    cout << "Type: " << (vehicle.isSpecial() ? "Special" : "Regular") << "\n\n";
+    
+    cout << "[1] Edit License Plate\n";
+    cout << "[2] Edit Phone Number\n";
+    cout << "[3] Edit Length\n";
+    cout << "[4] Edit Height\n";
+    cout << "[0] Cancel\n\n";
+    cout << "Enter your choice: ";
+    
+    int choice;
+    if (!(cin >> choice) || choice < 0 || choice > 4) {
+        cout << "Invalid choice. Operation cancelled.\n";
+        cin.clear();
+        cin.ignore();
+        return false;
+    }
+    cin.ignore();
+    
+    switch (choice) {
+        case 1: {
+            cout << "\nEdit License Plate:\n";
+            cout << "Format: Alphanumeric license plate\n";
+            cout << "Guidelines:\n";
+            cout << "  - Mix of letters and numbers (1-10 characters)\n";
+            cout << "  - Examples: BC1234, ABC123, 7XYZ890, QWE456\n";
+            string newLicence = getValidStringInput("New License Plate: ", 10);
+            if (newLicence == "CANCEL") return false;
+            
+            // Check if new license already exists
+            if (!vehicleFileIO.open()) {
+                cout << "Error: Unable to access vehicle database.\n";
+                return false;
+            }
+            
+            if (vehicleFileIO.exists(newLicence) && newLicence != licencePlate) {
+                cout << "Error: License plate " << newLicence << " already exists.\n";
+                vehicleFileIO.close();
+                return false;
+            }
+            
+            // Delete old record and save with new license
+            vehicleFileIO.deleteVehicle(licencePlate);
+            if (vehicleFileIO.saveVehicleWithData(vehicle, newLicence, currentPhone)) {
+                cout << "License plate successfully updated.\n";
+            } else {
+                cout << "Error: Failed to update license plate.\n";
+            }
+            vehicleFileIO.close();
+            break;
+        }
+        case 2: {
+            cout << "\nEdit Phone Number:\n";
+            cout << "Format: Phone number with area code\n";
+            cout << "Guidelines:\n";
+            cout << "  - Include area code (10 digits total)\n";
+            cout << "  - Examples: 604-555-1234, 2501234567, 778-999-0000\n";
+            string newPhone = getValidStringInput("New Phone Number: ", 14);
+            if (newPhone == "CANCEL") return false;
+            
+            if (!vehicleFileIO.open()) {
+                cout << "Error: Unable to access vehicle database.\n";
+                return false;
+            }
+            
+            if (vehicleFileIO.saveVehicleWithData(vehicle, licencePlate, newPhone)) {
+                cout << "Phone number successfully updated.\n";
+            } else {
+                cout << "Error: Failed to update phone number.\n";
+            }
+            vehicleFileIO.close();
+            break;
+        }
+        case 3: {
+            cout << "\nEdit Vehicle Length:\n";
+            cout << "Format: Decimal number in meters\n";
+            cout << "Guidelines:\n";
+            cout << "  - Enter length in meters (e.g., 7.0, 15.5, 60.0)\n";
+            cout << "  - Regular vehicles: ≤ 7.0m, Special vehicles: > 7.0m\n";
+            cout << "  - Use decimal point for precision\n";
+            float newLength = getValidFloatInput("New Length (meters): ", 0.1f, numeric_limits<float>::max());
+            
+            // Create updated vehicle
+            Vehicle updatedVehicle;
+            updatedVehicle.initialize(licencePlate.c_str(), currentPhone.c_str(), newLength, vehicle.getHeight());
+            
+            if (!vehicleFileIO.open()) {
+                cout << "Error: Unable to access vehicle database.\n";
+                return false;
+            }
+            
+            if (vehicleFileIO.saveVehicleWithData(updatedVehicle, licencePlate, currentPhone)) {
+                cout << "Length successfully updated.\n";
+                if (updatedVehicle.isSpecial() != vehicle.isSpecial()) {
+                    cout << "Vehicle type changed to: " << (updatedVehicle.isSpecial() ? "Special" : "Regular") << "\n";
+                }
+            } else {
+                cout << "Error: Failed to update length.\n";
+            }
+            vehicleFileIO.close();
+            break;
+        }
+        case 4: {
+            cout << "\nEdit Vehicle Height:\n";
+            cout << "Format: Decimal number in meters\n";
+            cout << "Guidelines:\n";
+            cout << "  - Enter height in meters (e.g., 2.0, 4.2, 6.0)\n";
+            cout << "  - Regular vehicles: ≤ 2.0m, Special vehicles: > 2.0m\n";
+            cout << "  - Use decimal point for precision\n";
+            float newHeight = getValidFloatInput("New Height (meters): ", 0.1f, numeric_limits<float>::max());
+            
+            // Create updated vehicle
+            Vehicle updatedVehicle;
+            updatedVehicle.initialize(licencePlate.c_str(), currentPhone.c_str(), vehicle.getLength(), newHeight);
+            
+            if (!vehicleFileIO.open()) {
+                cout << "Error: Unable to access vehicle database.\n";
+                return false;
+            }
+            
+            if (vehicleFileIO.saveVehicleWithData(updatedVehicle, licencePlate, currentPhone)) {
+                cout << "Height successfully updated.\n";
+                if (updatedVehicle.isSpecial() != vehicle.isSpecial()) {
+                    cout << "Vehicle type changed to: " << (updatedVehicle.isSpecial() ? "Special" : "Regular") << "\n";
+                }
+            } else {
+                cout << "Error: Failed to update height.\n";
+            }
+            vehicleFileIO.close();
+            break;
+        }
+        case 0:
+            cout << "Operation cancelled.\n";
+            return false;
+    }
+    
+    cout << "==============================================================\n";
+    return true;
+}
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: vehicle.h
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/09
+//************************************************************
+// PURPOSE:
+// Declares the interface for Vehicle objects, including 
+// creation,
+// editing, and classification (special vs. regular).
+//************************************************************
+// USAGE:
+// - Call initialize() to set up a Vehicle instance.
+// - Use addVehicle()/editVehicle() for persistence operations.
+// - Query isSpecial(), getLength(), or getHeight() as needed.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - James Nguyen
+//          - Initial draft for interface specification.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
+//************************************************************
+// in: Represents input parameter
+// out: Represents output parameter
+//************************************************************
+
+
+#ifndef VEHICLE_H
+#define VEHICLE_H
+
+#include <string>
+using namespace std;
+
+// Represents a vehicle with license, contact, dimensions,
+// and special‐vehicle classification.
+// Special vehicles: height > 2.0m OR length > 7.0m
+class Vehicle {
+private:
+    char licence[11];  // 1–10 chars + null terminator
+    char phone[15];    // 8–14 chars + null terminator
+    float length;      // in meters
+    float height;      // in meters
+    bool special;      // true if height > 2.0m OR length > 7.0m
+
+public:
+    // Initializes this Vehicle with provided attributes.
+    // in: newLicence – null‐terminated license string
+    // in: newPhone   – null‐terminated phone string
+    // in: newLength  – length in meters
+    // in: newHeight  – height in meters
+    void initialize(
+        const char* newLicence,
+        const char* newPhone,
+        float newLength,
+        float newHeight
+    );
+    std::string getPhone() const;
+    
+    // Cleans up resources (if any).
+    void shutdown();
+
+    // Adds a Vehicle record with the given attributes.
+    // in: newLicence – null‐terminated license string
+    // in: newPhone   – null‐terminated phone string
+    // in: newLength  – length in meters
+    // in: newHeight  – height in meters
+    void addVehicle(
+        const char* newLicence,
+        const char* newPhone,
+        float newLength,
+        float newHeight
+    );
+
+    // Edits this Vehicle's information.
+    // in: newLicence – new license string
+    // in: newPhone   – new phone string
+    // in: newLength  – new length in meters
+    // in: newHeight  – new height in meters
+    void editVehicle(
+        const char* newLicence,
+        const char* newPhone,
+        float newLength,
+        float newHeight
+    );
+
+    // Determines if this Vehicle is classified as special.
+    // Returns true if height > 2.0m OR length > 7.0m.
+    bool isSpecial() const;
+
+    // Returns this Vehicle's length (meters).
+    float getLength() const;
+
+    // Returns this Vehicle's height (meters).
+    float getHeight() const;
+};
+
+//--------------------------------------------------
+// Utility functions for vehicle management UI
+//--------------------------------------------------
+
+// Handles adding a vehicle through user interface
+// Returns true if successful, false if cancelled or failed
+bool addVehicleFromUI();
+
+// Handles editing a vehicle through user interface
+// in: licencePlate – license plate of vehicle to edit
+// Returns true if successful, false if cancelled or failed
+bool editVehicleFromUI(const std::string& licencePlate);
+
+
+#endif // VEHICLE_H
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: vehicleFileIO.cpp
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/23
+//************************************************************
+// PURPOSE:
+// Implements file I/O operations for Vehicle records, including
+// opening, closing, querying, retrieving, and saving data to 
+// persistent storage.
+// Handles vehicle database operations with proper error 
+// checking and data validation.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/23 - James Nguyen
+//          - Initial draft for vehicle specification.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp 
+//          implementation.
+//************************************************************
+
+
+#include "vehicleFileIO.h"
+#include <iostream>
+#include <fstream>
+#include <cstring>
+
+using namespace std;
+
+//--------------------------------------------------
+// Constants for file operations
+//--------------------------------------------------
+const string VEHICLE_DATA_FILE = "vehicles.dat";
+
+//--------------------------------------------------
+// Binary record structure for Vehicle data
+//--------------------------------------------------
+struct VehicleRecord {
+    char licence[11];    // License plate
+    char phone[15];      // Phone number
+    float length;        // Vehicle length
+    float height;        // Vehicle height
+    bool special;        // Special vehicle flag
+};
+
+//--------------------------------------------------
+// Helper functions for binary data serialization
+//--------------------------------------------------
+namespace {
+    
+    // Convert Vehicle object to binary record
+    VehicleRecord vehicleToBinaryRecord(const Vehicle& vehicle, const string& licence, const string& phone) {
+        VehicleRecord record;
+        
+        // Clear the record
+        memset(&record, 0, sizeof(VehicleRecord));
+        
+        // Copy data to record
+        strncpy(record.licence, licence.c_str(), 10);
+        record.licence[10] = '\0';
+        
+        strncpy(record.phone, phone.c_str(), 14);
+        record.phone[14] = '\0';
+        
+        record.length = vehicle.getLength();
+        record.height = vehicle.getHeight();
+        record.special = vehicle.isSpecial();
+        
+        return record;
+    }
+    
+    // Convert binary record to Vehicle object
+    Vehicle binaryRecordToVehicle(const VehicleRecord& record, string& licence, string& phone) {
+        Vehicle vehicle;
+        
+        licence = string(record.licence);
+        phone = string(record.phone);
+        
+        vehicle.initialize(record.licence, record.phone, record.length, record.height);
+        
+        return vehicle;
+    }
+    
+} // end anonymous namespace
+
+//--------------------------------------------------
+// FileIOforVehicle class implementation
+//--------------------------------------------------
+
+bool FileIOforVehicle::open() {
+    try {
+        // Try to open file in binary read/write mode
+        data.open(VEHICLE_DATA_FILE, ios::in | ios::out | ios::binary);
+        
+        if (!data.is_open()) {
+            // File doesn't exist, create it
+            data.clear();
+            data.open(VEHICLE_DATA_FILE, ios::out | ios::binary);
+            if (!data.is_open()) {
+                cerr << "Error: Cannot create vehicle data file." << endl;
+                return false;
+            }
+            data.close();
+            
+            // Reopen in binary read/write mode
+            data.open(VEHICLE_DATA_FILE, ios::in | ios::out | ios::binary);
+            if (!data.is_open()) {
+                cerr << "Error: Cannot open vehicle data file for read/write." << endl;
+                return false;
+            }
+        }
+        
+        return true;
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::open(): " << e.what() << endl;
+        return false;
+    }
+}
+
+bool FileIOforVehicle::close() {
+    try {
+        if (data.is_open()) {
+            data.close();
+        }
+        return !data.is_open();
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::close(): " << e.what() << endl;
+        return false;
+    }
+}
+
+bool FileIOforVehicle::exists(const string &licence) {
+    if (!data.is_open()) {
+        return false;
+    }
+    
+    try {
+        // Reset file position
+        data.clear();
+        data.seekg(0, ios::beg);
+        
+        VehicleRecord record;
+        while (data.read(reinterpret_cast<char*>(&record), sizeof(VehicleRecord))) {
+            if (string(record.licence) == licence) {
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::exists(): " << e.what() << endl;
+        return false;
+    }
+}
+
+vector<Vehicle> FileIOforVehicle::getAllVehicles() {
+    vector<Vehicle> vehicles;
+    
+    if (!data.is_open()) {
+        return vehicles;
+    }
+    
+    try {
+        // Reset file position
+        data.clear();
+        data.seekg(0, ios::beg);
+        
+        VehicleRecord record;
+        while (data.read(reinterpret_cast<char*>(&record), sizeof(VehicleRecord))) {
+            string licence, phone;
+            Vehicle vehicle = binaryRecordToVehicle(record, licence, phone);
+            vehicles.push_back(vehicle);
+        }
+        
+        return vehicles;
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::getAllVehicles(): " << e.what() << endl;
+        return vehicles;
+    }
+}
+
+Vehicle FileIOforVehicle::getVehicle(const string &licence) {
+    Vehicle vehicle;
+    
+    if (!data.is_open()) {
+        return vehicle;
+    }
+    
+    try {
+        // Reset file position
+        data.clear();
+        data.seekg(0, ios::beg);
+        
+        VehicleRecord record;
+        while (data.read(reinterpret_cast<char*>(&record), sizeof(VehicleRecord))) {
+            if (string(record.licence) == licence) {
+                string licenceStr, phone;
+                return binaryRecordToVehicle(record, licenceStr, phone);
+            }
+        }
+        
+        return vehicle; // Empty vehicle if not found
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::getVehicle(): " << e.what() << endl;
+        return vehicle;
+    }
+}
+
+bool FileIOforVehicle::saveVehicle(const Vehicle &v) {
+    // For basic save, we need license and phone. 
+    // This is a simplified version - the caller should use saveVehicleWithData
+    return saveVehicleWithData(v, "UNKNOWN", v.getPhone());
+}
+
+bool FileIOforVehicle::saveVehicleWithData(const Vehicle &vehicle, 
+                                           const string &licence, 
+                                           const string &phone) {
+    if (!data.is_open()) {
+        return false;
+    }
+    
+    try {
+        VehicleRecord record = vehicleToBinaryRecord(vehicle, licence, phone);
+        
+        // Check if vehicle already exists
+        if (exists(licence)) {
+            // Update existing record
+            data.clear();
+            data.seekg(0, ios::beg);
+            
+            VehicleRecord tempRecord;
+            streampos position = 0;
+            
+            while (data.read(reinterpret_cast<char*>(&tempRecord), sizeof(VehicleRecord))) {
+                if (string(tempRecord.licence) == licence) {
+                    // Found the record, overwrite it
+                    data.seekp(position);
+                    data.write(reinterpret_cast<const char*>(&record), sizeof(VehicleRecord));
+                    data.flush();
+                    return true;
+                }
+                position = data.tellg();
+            }
+        } else {
+            // Append new record
+            data.clear();
+            data.seekp(0, ios::end);
+            data.write(reinterpret_cast<const char*>(&record), sizeof(VehicleRecord));
+            data.flush();
+            return true;
+        }
+        
+        return false;
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::saveVehicleWithData(): " << e.what() << endl;
+        return false;
+    }
+}
+
+bool FileIOforVehicle::deleteVehicle(const string &licence) {
+    if (!data.is_open()) {
+        return false;
+    }
+    
+    try {
+        // Read all records except the one to delete
+        vector<VehicleRecord> records;
+        data.clear();
+        data.seekg(0, ios::beg);
+        
+        VehicleRecord record;
+        while (data.read(reinterpret_cast<char*>(&record), sizeof(VehicleRecord))) {
+            if (string(record.licence) != licence) {
+                records.push_back(record);
+            }
+        }
+        
+        // Close and reopen file to truncate
+        data.close();
+        data.open(VEHICLE_DATA_FILE, ios::out | ios::binary | ios::trunc);
+        
+        // Write back all records except the deleted one
+        for (const auto& rec : records) {
+            data.write(reinterpret_cast<const char*>(&rec), sizeof(VehicleRecord));
+        }
+        
+        data.close();
+        
+        // Reopen in read/write mode
+        data.open(VEHICLE_DATA_FILE, ios::in | ios::out | ios::binary);
+        
+        return true;
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::deleteVehicle(): " << e.what() << endl;
+        return false;
+    }
+}
+
+bool FileIOforVehicle::getVehicleWithData(const string &licence, 
+                                          Vehicle &vehicle, 
+                                          string &phone) {
+    if (!data.is_open()) {
+        return false;
+    }
+    
+    try {
+        // Reset file position
+        data.clear();
+        data.seekg(0, ios::beg);
+        
+        VehicleRecord record;
+        while (data.read(reinterpret_cast<char*>(&record), sizeof(VehicleRecord))) {
+            if (string(record.licence) == licence) {
+                string licenceStr;
+                vehicle = binaryRecordToVehicle(record, licenceStr, phone);
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (const exception& e) {
+        cerr << "Exception in FileIOforVehicle::getVehicleWithData(): " << e.what() << endl;
+        return false;
+    }
+}
+
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// FILE: vehicleFileIO.h
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// PROJECT: CMPT 276 – Ferry Reservation Software System
+// TEAM: Group 19
+// DATE: 2025/07/09
+//************************************************************
+// PURPOSE:
+// Declares the interface for file I/O operations on Vehicle 
+// records,
+// including opening, closing, querying, retrieving, and saving 
+// data.
+//************************************************************
+// USAGE:
+// - Instantiate FileIOforVehicle and call open() before any 
+// other operations.
+// - Use exists(), getVehicle(), or getAllVehicles() for 
+// queries.
+// - Use saveVehicle() to persist a Vehicle.
+// - Call close() when done.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - James Nguyen
+//          - Initial draft for vehicle file IO specification.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
+//************************************************************
+// in: Represents input parameter
+// out: Represents output parameter
+//************************************************************
+
+#ifndef VEHICLE_FILE_IO_H
+#define VEHICLE_FILE_IO_H
+
+#include <fstream>
+#include <string>
+#include <vector>
+#include "vehicle.h"
+
+// Helper for navigating persistent Vehicle records.
+class FileIOforVehicle
+{
+private:
+    std::fstream data;  // file stream for vehicle data
+
+public:
+    // Opens the vehicle data file.
+    // Returns false if unable to open.
+    bool open();
+
+    // Closes the vehicle data file.
+    // Returns false if unable to close.
+    bool close();
+
+    // Checks if a vehicle with the given license exists.
+    // in:  licence – license string to query
+    // Returns true if found.
+    bool exists(const std::string &licence);
+
+    // Retrieves all vehicles from the data file.
+    // out: vector of Vehicle objects (empty if none).
+    std::vector<Vehicle> getAllVehicles();
+
+    // Retrieves a single Vehicle by license.
+    // in:  licence – license string to retrieve
+    // Returns a Vehicle object populated from file.
+    Vehicle getVehicle(const std::string &licence);
+
+    // Saves a Vehicle record to the data file.
+    // in:  v – Vehicle object to persist
+    // Returns true if successful.
+    bool saveVehicle(const Vehicle &v);
+
+    // Saves a Vehicle record with complete data to the 
+    // data file.
+    // in:  vehicle – Vehicle object to persist
+    // in:  licence – license plate string
+    // in:  phone – phone number string
+    // Returns true if successful.
+    bool saveVehicleWithData(const Vehicle &vehicle, 
+                            const std::string &licence, 
+                            const std::string &phone);
+
+    // Deletes a vehicle record by license plate.
+    // in:  licence – license plate string to delete
+    // Returns true if successful.
+    bool deleteVehicle(const std::string &licence);
+
+    // Retrieves a Vehicle with complete data by license.
+    // in:  licence – license string to retrieve
+    // out: vehicle – Vehicle object to populate
+    // out: phone – phone number string
+    // Returns true if found.
+    bool getVehicleWithData(const std::string &licence, 
+                           Vehicle &vehicle, 
+                           std::string &phone);
+};
+
+#endif // VEHICLE_FILE_IO_H
+
+
+=============================================================
+End of Source Code Compilation
+Total files processed: 30

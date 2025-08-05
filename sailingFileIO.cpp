@@ -1,18 +1,21 @@
-// FILE: sailingFileIO.cpp
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
-// DATE: 2025/08/05
+// DATE: 2025/07/23
 //************************************************************
 // PURPOSE:
-// Implements binary file I/O operations for Sailing records
+//   Implements the file I/O operations for the Sailing class,
+//   including opening, closing, reading, writing, and deleting sailings.
+//   Provides functionality for managing sailing records in a binary file format.
 //************************************************************
 // REVISION HISTORY:
 // Rev. 1 - 2025/07/24 - Nathan Miller
-//          - Initial .cpp implementation based on header specification.
-// Rev. 2 - 2025/08/05 - Nathan Miller
+//          - Initial interface for Sailing File I/O.
+// Rev. 2 - 2025/08/01 - Nathan Miller
+//          - Finalized format and synced with .cpp logic.
+// Rev. 3 - 2025/08/05 - Nathan Miller
 //          - Fully debugged final release version.
 //************************************************************
+
 
 #include "sailingFileIO.h"
 #include <vector>

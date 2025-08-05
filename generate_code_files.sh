@@ -25,7 +25,6 @@ add_source_file() {
         echo "//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" >> "$OUTPUT_FILE"
         echo "// FILE: $filename" >> "$OUTPUT_FILE"
         echo "//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" >> "$OUTPUT_FILE"
-        echo "" >> "$OUTPUT_FILE"
         cat "$filepath" >> "$OUTPUT_FILE"
         echo "" >> "$OUTPUT_FILE"
     else

@@ -1,6 +1,5 @@
-// FILE: ReservationFileIO.cpp
-//************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #4)
+// PROJECT: CMPT 276 – Ferry Reservation Software System 
+// (Assignment #4)
 // TEAM: Group 19
 // DATE: 25/07/24
 //************************************************************
@@ -16,11 +15,16 @@
 // REVISION HISTORY:
 // Rev. 1 - 2025/07/24 - Danny Choi
 //          - Implementation of .cpp file based on header
+// specification.
+// Rev. 2 - 2025/08/05 - Danny Choi
+//          - Fully debugged final release version.
 //************************************************************
+
 
 #include "reservationFileIO.h"
 #include "reservation.h"
 #include <fstream>
+#include <iostream>
 #include <vector>
 #include <cstring>
 #include <unistd.h> // for ftruncate, fileno
@@ -28,11 +32,13 @@
 #define FILENO fileno
 
 //--------------------------------------------------
-// Module-scope file stream for reading/writing reservation records
+// Module-scope file stream for reading/writing reservation 
+// records
 static std::fstream reservationFile;
 
 //--------------------------------------------------
-// Path of the binary file in use (needed for re-opening after truncation)
+// Path of the binary file in use (needed for re-opening after 
+// truncation)
 static std::string filePath;
 
 //--------------------------------------------------
@@ -78,6 +84,8 @@ bool saveReservation(const ReservationRecord &record)
     reservationFile.seekg(0);
 
     // Search for existing matching record
+    // Loop goal: Read through all reservation records to find matching license 
+    // plate and sailing ID
     while (reservationFile.read(reinterpret_cast<char *>(&existing), sizeof(ReservationRecord)))
     {
         if (std::strncmp(existing.licensePlate, record.licensePlate, LICENSE_PLATE_MAX) == 0 &&
@@ -85,6 +93,7 @@ bool saveReservation(const ReservationRecord &record)
         {
             reservationFile.seekp(pos);
             reservationFile.write(reinterpret_cast<const char *>(&record), sizeof(ReservationRecord));
+            reservationFile.flush(); // Ensure data is written to disk
             return reservationFile.good(); // confirm successful write
         }
         pos = reservationFile.tellg();
@@ -94,12 +103,15 @@ bool saveReservation(const ReservationRecord &record)
     reservationFile.clear();
     reservationFile.seekp(0, std::ios::end);
     reservationFile.write(reinterpret_cast<const char *>(&record), sizeof(ReservationRecord));
+    reservationFile.flush(); // Ensure data is written to disk
     return reservationFile.good(); // confirm successful append
 }
 
 //--------------------------------------------------
-// Retrieves a reservation record matching license plate and sailing ID.
-// Loads the result into 'record'. Returns true if found, false otherwise.
+// Retrieves a reservation record matching license plate 
+// and sailing ID.
+// Loads the result into 'record'. Returns true if found, 
+// false otherwise.
 bool getReservation(const std::string &licensePlate,
                     const std::string &sailingID,
                     ReservationRecord &record)
@@ -110,6 +122,7 @@ bool getReservation(const std::string &licensePlate,
     reservationFile.clear();
     reservationFile.seekg(0);
 
+    // Loop goal: Search through all reservation records to find specific license plate and sailing ID
     while (reservationFile.read(reinterpret_cast<char *>(&record), sizeof(ReservationRecord)))
     {
         if (std::strncmp(record.licensePlate, licensePlate.c_str(), LICENSE_PLATE_MAX) == 0 &&
@@ -144,7 +157,7 @@ bool deleteReservation(const std::string &licensePlate, const std::string &saili
     reservationFile.clear();
     reservationFile.seekg(0);
 
-    // GOAL: Read all records that are NOT being deleted
+    // Loop goal: Read all records and keep only those that don't match the deletion criteria
     while (reservationFile.read(reinterpret_cast<char *>(&rec), sizeof(ReservationRecord)))
     {
         if (!(std::strncmp(rec.licensePlate, licensePlate.c_str(), LICENSE_PLATE_MAX) == 0 &&
@@ -157,6 +170,7 @@ bool deleteReservation(const std::string &licensePlate, const std::string &saili
     // Rewrite all remaining records
     reservationFile.close(); // close before overwriting
     std::ofstream truncFile(filePath, std::ios::out | std::ios::binary | std::ios::trunc);
+    // Loop goal: Write all remaining records back to the file after deletion
     for (const auto &r : all)
     {
         truncFile.write(reinterpret_cast<const char *>(&r), sizeof(ReservationRecord));

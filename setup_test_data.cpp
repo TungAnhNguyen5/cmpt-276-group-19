@@ -50,6 +50,7 @@ void debugFileCreation(const string& filename, const string& operation) {
 bool createSailingDirect(const char* sailingID, const char* vesselName, int lcll, int hcll, 
                         const char* terminal = "Tsawwassen", const char* date = "2025-08-15", 
                         const char* time = "10:00") {
+    
     cout << "Creating sailing " << sailingID << " with vessel " << vesselName 
          << " (LCLL: " << lcll << ", HCLL: " << hcll << ")...\n";
     
@@ -115,20 +116,20 @@ int main() {
     cout << "Creating vehicles...\n";
     
     try {
-        // Vehicle 1: BC1234 (Normal)
+        // Vehicle 1: BC1234 (Normal) - using default normal vehicle dimensions
         Vehicle vehicle1;
-        vehicle1.initialize("BC1234", "604-555-1234", 5.0f, 1.8f);
-        cout << "✓ Created vehicle BC1234 (Normal, 5.0m x 1.8m)\n";
+        vehicle1.initialize("BC1234", "604-555-1234", 7.0f, 2.0f);
+        cout << "✓ Created vehicle BC1234 (Normal, 7.0m x 2.0m)\n";
         
         // Vehicle 2: AB-TRK-222 (Special)
         Vehicle vehicle2;
         vehicle2.initialize("AB-TRK-222", "604-787-8888", 60.0f, 4.1f);
         cout << "✓ Created vehicle AB-TRK-222 (Special, 60.0m x 4.1m)\n";
         
-        // Vehicle 3: BC5678 (Normal)
+        // Vehicle 3: BC5678 (Normal) - using default normal vehicle dimensions
         Vehicle vehicle3;
-        vehicle3.initialize("BC5678", "604-777-8888", 5.5f, 1.9f);
-        cout << "✓ Created vehicle BC5678 (Normal, 5.5m x 1.9m)\n";
+        vehicle3.initialize("BC5678", "604-777-8888", 7.0f, 2.0f);
+        cout << "✓ Created vehicle BC5678 (Normal, 7.0m x 2.0m)\n";
         
         // Save vehicles to file
         FileIOforVehicle vehicleIO;
@@ -147,8 +148,8 @@ int main() {
     cout << "\nCreating reservations...\n";
     
     try {
-        // Reservation 1: ABC-01-07, BC1234 (Normal)
-        bool res1 = addReservation("ABC-01-07", "BC1234", "604-555-1234", false, 1.8f, 5.0f);
+        // Reservation 1: ABC-01-07, BC1234 (Normal) - using default normal vehicle dimensions
+        bool res1 = addReservation("ABC-01-07", "BC1234", "604-555-1234", false, 2.0f, 7.0f);
         if (res1) {
             cout << "✓ Created reservation: ABC-01-07, BC1234 (Normal)\n";
         } else {
@@ -163,8 +164,8 @@ int main() {
             cout << "! Reservation creation reported failure but continuing...\n";
         }
         
-        // Reservation 3: DEF-15-13, BC5678 (Normal)
-        bool res3 = addReservation("DEF-15-13", "BC5678", "604-777-8888", false, 1.9f, 5.5f);
+        // Reservation 3: DEF-15-13, BC5678 (Normal) - using default normal vehicle dimensions
+        bool res3 = addReservation("DEF-15-13", "BC5678", "604-777-8888", false, 2.0f, 7.0f);
         if (res3) {
             cout << "✓ Created reservation: DEF-15-13, BC5678 (Normal)\n";
         } else {
@@ -185,9 +186,9 @@ int main() {
     // Step 6: Calculate and display fares
     cout << "\nCalculated fares for demo:\n";
     try {
-        cout << "  BC1234 (Normal): $" << std::fixed << std::setprecision(2) << calculateFare(false, 5.0f, 1.8f) << "\n";
+        cout << "  BC1234 (Normal): $" << std::fixed << std::setprecision(2) << calculateFare(false, 7.0f, 2.0f) << "\n";
         cout << "  AB-TRK-222 (Special): $" << std::fixed << std::setprecision(2) << calculateFare(true, 60.0f, 4.1f) << "\n";
-        cout << "  BC5678 (Normal): $" << std::fixed << std::setprecision(2) << calculateFare(false, 5.5f, 1.9f) << "\n";
+        cout << "  BC5678 (Normal): $" << std::fixed << std::setprecision(2) << calculateFare(false, 7.0f, 2.0f) << "\n";
     } catch (...) {
         cout << "! Could not calculate fares (function may not be available)\n";
     }

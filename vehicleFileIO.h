@@ -1,18 +1,27 @@
-// FILE: VehicleFileIO.h
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
 // DATE: 2025/07/09
 //************************************************************
 // PURPOSE:
-// Declares the interface for file I/O operations on Vehicle records,
-// including opening, closing, querying, retrieving, and saving data.
+// Declares the interface for file I/O operations on Vehicle 
+// records,
+// including opening, closing, querying, retrieving, and saving 
+// data.
 //************************************************************
 // USAGE:
-// - Instantiate FileIOforVehicle and call open() before any other operations.
-// - Use exists(), getVehicle(), or getAllVehicles() for queries.
+// - Instantiate FileIOforVehicle and call open() before any 
+// other operations.
+// - Use exists(), getVehicle(), or getAllVehicles() for 
+// queries.
 // - Use saveVehicle() to persist a Vehicle.
 // - Call close() when done.
+//************************************************************
+// REVISION HISTORY:
+// Rev. 1 - 2025/07/09 - James Nguyen
+//          - Initial draft for vehicle file IO specification.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
 //************************************************************
 // in: Represents input parameter
 // out: Represents output parameter
@@ -60,7 +69,8 @@ public:
     // Returns true if successful.
     bool saveVehicle(const Vehicle &v);
 
-    // Saves a Vehicle record with complete data to the data file.
+    // Saves a Vehicle record with complete data to the 
+    // data file.
     // in:  vehicle – Vehicle object to persist
     // in:  licence – license plate string
     // in:  phone – phone number string

@@ -1,11 +1,10 @@
-// FILE: Vehicle.h
-//************************************************************
 // PROJECT: CMPT 276 – Ferry Reservation Software System
 // TEAM: Group 19
 // DATE: 2025/07/09
 //************************************************************
 // PURPOSE:
-// Declares the interface for Vehicle objects, including creation,
+// Declares the interface for Vehicle objects, including 
+// creation,
 // editing, and classification (special vs. regular).
 //************************************************************
 // USAGE:
@@ -16,10 +15,14 @@
 // REVISION HISTORY:
 // Rev. 1 - 2025/07/09 - James Nguyen
 //          - Initial draft for interface specification.
+// Rev. 2 - 2025/08/05 - James Nguyen
+//          - Finalized interface and aligned with .cpp
+// implementation.
 //************************************************************
 // in: Represents input parameter
 // out: Represents output parameter
 //************************************************************
+
 
 #ifndef VEHICLE_H
 #define VEHICLE_H

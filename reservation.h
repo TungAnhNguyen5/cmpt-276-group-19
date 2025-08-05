@@ -1,35 +1,41 @@
-//************************************************************
-// FILE: Reservation.h
-//************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System (Assignment #4)
+// PROJECT: CMPT 276 – Ferry Reservation Software System 
+// (Assignment #4)
 // TEAM: Group 19
 // DATE: 25/07/24
 //************************************************************
 // PURPOSE:
-//   Declares the interface for reservation-related logic, including
+//   Declares the interface for reservation-related logic, 
+// including
 //   adding, checking-in, and fare calculation.
 //************************************************************
 // USAGE:
-// - Call initialize() before using any functions in this module.
+// - Call initialize() before using any functions in this 
+// module.
 // - Call shutdown() before exiting the program.
 //************************************************************
 // REVISION HISTORY:
 // Rev. 1 - 2025/07/09 - Danny Choi
 //          - Initial draft for interface specification.
 // Rev. 2 - 2025/07/24 - Danny Choi
-//          - Finalized interface and aligned with .cpp implementation.
+//          - Finalized interface and aligned with .cpp 
+// implementation.
+// Rev. 3 - 2025/08/05 - Danny Choi
+//          - Fully debugged final release version.
 //************************************************************
 // in: Represents input parameter
 // out: Represents output parameter
 //************************************************************
+
 
 #ifndef RESERVATION_H
 #define RESERVATION_H
 
 #include <string>
 
-const int LICENSE_PLATE_MAX = 10; // Max characters for license plate (including null terminator)
-const int SAILING_ID_MAX = 9;     // Max characters for sailing ID (including null terminator)
+const int LICENSE_PLATE_MAX = 12; // Max characters for license plate (including 
+// null terminator)
+const int SAILING_ID_MAX = 10;     // Max characters for sailing ID (including 
+// null terminator)
 
 //--------------------------------------------------
 // Minimal type used for interface clarity only.
