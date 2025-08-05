@@ -50,7 +50,8 @@ public:
         float newLength,
         float newHeight
     );
-
+    std::string getPhone() const;
+    
     // Cleans up resources (if any).
     void shutdown();
 

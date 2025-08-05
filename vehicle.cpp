@@ -19,6 +19,11 @@
 
 using namespace std;
 
+std::string Vehicle::getPhone() const {
+    return std::string(phone);
+}
+
+
 //--------------------------------------------------
 // Static FileIO instance for vehicle persistence
 //--------------------------------------------------
@@ -40,7 +45,8 @@ namespace {
                 return "CANCEL";
             }
             
-            if (input.length() > 0 && input.length() <= maxLength) {
+            // Fix: Cast maxLength to size_t to match string::length() return type
+            if (input.length() > 0 && input.length() <= static_cast<size_t>(maxLength)) {
                 return input;
             }
             

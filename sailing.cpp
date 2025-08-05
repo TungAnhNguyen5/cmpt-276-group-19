@@ -5,6 +5,9 @@
 #include <iomanip>
 #include <cstring>
 #include <limits>
+#include <algorithm>
+#include <vector>
+#include <sstream>
 
 using namespace std;
 
@@ -18,6 +21,7 @@ bool Sailing::addSailing()
     const int CONFIRM_OPTION = 1;
 
     // uses helper functions to prompt the user for and create the sailing id
+    UI::displayHeader("Add Sailing");
     string depTerm = addDepTerm();
     string date = addDate();
     string time = addTime();
@@ -32,6 +36,7 @@ bool Sailing::addSailing()
     // aborts the process if the sailing already exists
     if (sailingFileIO::exists(sid))
     {
+        cout << "Sailing with ID " << sid << " already exists.\n";
         return false;
     }
 
@@ -39,6 +44,14 @@ bool Sailing::addSailing()
     string vessel = addVessel();
     int lcll = addLCLL();
     int hcll = addHCLL();
+
+    // displays the sailing information before prompting the user to confirm
+    cout << "\nDeparture Terminal: " << depTerm << "\n";
+    cout << "Departure Date: " << date << "\n";
+    cout << "Departure Time: " << time << "\n";
+    cout << "Vessel ID: " << vessel << "\n";
+    cout << "LCLL: " << lcll << "\n";
+    cout << "HCLL: " << hcll << "\n";
 
     // confirms the entry, cancels if cancelled
     if (!confirm(CONFIRM_OPTION))
@@ -56,85 +69,90 @@ bool Sailing::addSailing()
     s.lrl = lcll;
     s.hrl = hcll;
 
-    sailingFileIO::saveSailing(s);
-    return true;
+    if (sailingFileIO::saveSailing(s))
+    {
+        cout << "Sailing Successfully Added. Returning to the main menu.\n";
+        UI::displayFooter();
+        return true;
+    }
+
+    cout << "Error: Unable to add sailing.\n";
+    // if it fails to save, returns false to the UI
+    UI::displayFooter();
+    return false;
 }
 
 void Sailing::editSailing()
 {
-    // used to keep track of order and options
-    enum editSailingOptions
-    {
-        DEP_TERM = 1,
-        DEP_DAY,
-        DEP_TIME,
-        VESSEL_ID,
-        LCLL,
-        HCLL,
-        NUM_OF_OPTIONS = 6
-    };
 
-    Sailing s = *this;
-    string sid = s.sailingID;
-    // for loop to print the option select in order
-    for (int i = 1; i <= NUM_OF_OPTIONS; i++)
-    {
-        switch (i)
-        {
-        case DEP_TERM:
-            cout << "[" << i << "] " << "Departure Terminal: " << sid.substr(0, 3) << "\n";
-            break;
-
-        case DEP_DAY:
-            cout << "[" << i << "] " << "Departure Day: " << sid.substr(4, 2) << "\n";
-            break;
-
-        case DEP_TIME:
-            cout << "[" << i << "] " << "Departure Time: " << sid.substr(7, 2) << "\n";
-            break;
-
-        case VESSEL_ID:
-            cout << "[" << i << "] " << "Vessel ID: " << s.vesselID << "\n";
-            break;
-
-        case LCLL:
-            cout << "[" << i << "] " << "LCLL: " << s.lcll << "\n";
-            break;
-
-        case HCLL:
-            cout << "[" << i << "] " << "HCLL: " << s.hcll << "\n";
-            break;
-        }
-    }
-
-    // after two new lines, prints the options that aren't directly tied to editing the sailing.
-    const int CONFIRM_OPTION = 7;
-    const int RESERVATIONS_OPTION = 8;
-    const int DELETE_OPTION = 9;
-
-    cout << "\n[" << CANCEL_OPTION << "] Cancel\n";
-    cout << "[" << CONFIRM_OPTION << "] Confirm\n";
-    cout << "[" << RESERVATIONS_OPTION << "] Manage Reservations\n";
-    cout << "[" << DELETE_OPTION << "] Delete Sailing\n";
-
-    // prompts the user for input until they enter something valid.
-    cout << "\nEnter an Option: ";
     bool editing = true;
     int input;
+    Sailing s = *this;
 
     // runs the editing loop until either confirm, cancel, delete, or manage reservations is chosen
     while (editing)
     {
+        // used to keep track of order and options
+        enum editSailingOptions
+        {
+            DEP_TERM = 1,
+            DEP_DAY,
+            DEP_TIME,
+            VESSEL_ID,
+            LCLL,
+            HCLL,
+            NUM_OF_OPTIONS = 6
+        };
+
+        string sid = s.sailingID;
+        // for loop to print the option select in order
+        for (int i = 1; i <= NUM_OF_OPTIONS; i++)
+        {
+            UI::displayHeader("Edit Sailing");
+            switch (i)
+            {
+            case DEP_TERM:
+                cout << "[" << i << "] " << "Departure Terminal: " << sid.substr(0, 3) << "\n";
+                break;
+
+            case DEP_DAY:
+                cout << "[" << i << "] " << "Departure Day: " << sid.substr(4, 2) << "\n";
+                break;
+
+            case DEP_TIME:
+                cout << "[" << i << "] " << "Departure Time: " << sid.substr(7, 2) << "\n";
+                break;
+
+            case VESSEL_ID:
+                cout << "[" << i << "] " << "Vessel ID: " << s.vesselID << "\n";
+                break;
+
+            case LCLL:
+                cout << "[" << i << "] " << "LCLL: " << s.lcll << "\n";
+                break;
+
+            case HCLL:
+                cout << "[" << i << "] " << "HCLL: " << s.hcll << "\n";
+                break;
+            }
+        }
+
+        // after two new lines, prints the options that aren't directly tied to editing the sailing.
+        const int CONFIRM_OPTION = 7;
+        const int RESERVATIONS_OPTION = 8;
+        const int DELETE_OPTION = 9;
+
+        cout << "\n[" << CANCEL_OPTION << "] Cancel\n";
+        cout << "[" << CONFIRM_OPTION << "] Confirm\n";
+        cout << "[" << RESERVATIONS_OPTION << "] Manage Reservations\n";
+        cout << "[" << DELETE_OPTION << "] Delete Sailing\n";
+
+        // prompts the user for input until they enter something valid.
+        cout << "\nEnter an Option: ";
         cin >> input;
         if (cin.fail() || input < CANCEL_OPTION || input > DELETE_OPTION)
         {
-            if (cin.eof()) {
-                // Handle end of input - exit gracefully
-                return;
-            }
             cout << "Please enter a valid option: ";
-            cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
         }
         else
         {
@@ -142,6 +160,7 @@ void Sailing::editSailing()
             {
             // returns control to UI if cancelled
             case CANCEL_OPTION:
+                cout << "Changes Reverted. Returning to the main menu.\n";
                 return;
                 break;
             case DEP_TERM:
@@ -152,6 +171,12 @@ void Sailing::editSailing()
                 s.sailingID[0] = newDepTermC[0];
                 s.sailingID[1] = newDepTermC[1];
                 s.sailingID[2] = newDepTermC[2];
+                // aborts the operation if the new sailing ID already exists
+                if (sailingFileIO::exists(s.sailingID))
+                {
+                    cout << "Sailing with ID " << s.sailingID << " already exists.\n";
+                    return;
+                }
                 break;
             }
             case DEP_DAY:
@@ -161,6 +186,12 @@ void Sailing::editSailing()
                 const char *newDepDayC = newDepDay.c_str();
                 s.sailingID[4] = newDepDayC[0];
                 s.sailingID[5] = newDepDayC[1];
+                // aborts the operation if the new sailing ID already exists
+                if (sailingFileIO::exists(s.sailingID))
+                {
+                    cout << "Sailing with ID " << s.sailingID << " already exists.\n";
+                    return;
+                }
                 break;
             }
             case DEP_TIME:
@@ -170,6 +201,12 @@ void Sailing::editSailing()
                 const char *newDepTimeC = newDepTime.c_str();
                 s.sailingID[7] = newDepTimeC[0];
                 s.sailingID[8] = newDepTimeC[1];
+                // aborts the operation if the new sailing ID already exists
+                if (sailingFileIO::exists(s.sailingID))
+                {
+                    cout << "Sailing with ID " << s.sailingID << " already exists.\n";
+                    return;
+                }
                 break;
             }
             break;
@@ -190,6 +227,8 @@ void Sailing::editSailing()
                 if (newLCLL < s.lrl)
                 {
                     cout << "Error: New LCLL is less than lrl\n";
+                    cin.clear();
+                    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 }
                 else
                 {
@@ -204,6 +243,8 @@ void Sailing::editSailing()
                 if (newHCLL < s.hrl)
                 {
                     cout << "Error: New HCLL is less than hrl\n";
+                    cin.clear();
+                    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
                 }
                 else
                 {
@@ -215,27 +256,33 @@ void Sailing::editSailing()
             case CONFIRM_OPTION:
             {
                 editing = false;
+
                 // also needs to call move reservations, add when relevant
                 sailingFileIO::deleteSailing(sailingID);
+
                 sailingFileIO::saveSailing(s);
-                cout << "Sailing successfully edited. Returning to main menu.\n";
+
+                cout << "Changes Successfully Saved. Returning to the main menu.\n";
                 break;
             }
             // opens manage reservations for this sailing, requires reservation class
             case RESERVATIONS_OPTION:
             {
-                UI::manageReservationsForSailing(sailingID);
+                UI::manageReservationsForSailing(s.sailingID);
                 break;
             }
             case DELETE_OPTION:
             {
                 editing = false;
-                sailingFileIO::deleteSailing(s.sailingID);
-                cout << "Sailing successfully deleted. Returning to main menu.\n";
+                if (sailingFileIO::deleteSailing(s.sailingID))
+                {
+                    cout << "Sailing Successfully Deleted. Returning to the main menu.\n";
+                }
                 break;
             }
             }
         }
+        UI::displayFooter();
     }
 }
 
@@ -246,29 +293,39 @@ void Sailing::displayReport()
     const int VESSEL_ID_LENGTH = 25;
     const int LRL_LENGTH = 6;
     const int HRL_LENGTH = 6;
-    const int VEHICLE_NUM_LENGTH = 7;
     const int PERCENT_LENGTH = 4;
-    const int MAX_VEHICLES = 300;
-
-    // Display report header with current date
-    cout << "Sailing Report                                                     25/06/24\n";
-    cout << "===============================================================================\n";
-    cout << "Sailing ID    Vessel ID               LRL    HRL    # of Vehicles  Percent Full\n";
-    cout << "===============================================================================\n";
 
     // resets position in the file so it starts at the beginning every time
     sailingFileIO::reset();
 
     while (reportActive)
     {
-        // Placeholder data - in real implementation would use sailingFileIO::getNextFive()
-        // For now, display sample data that matches the format in the attachment
-        cout << "1]ABC-01-09   Brokenship912           30     30     020/300        091%\n";
-        cout << "2]ABC-01-17   Hugeship376             05     10     025/300        023%\n";
-        cout << "3]ABC-01-12   Brokenship912           20     13     045/300        024%\n";
-        cout << "4]ABC-03-06   Hugeship376             11     11     200/300        067%\n";
-        cout << "5]EFE-03-06   Brokenship912           50     40     050/300        090%\n";
-        cout << "6]CCC-DD-DD   CCCCCCCCCCCCCCCCCCCCCCC DDDD.D DDDD.D DDD/DDD        DDD%\n";
+        UI::displayHeader("Sailing Report");
+        // grabs up to the first five sailings saved in the system
+        Sailing *fiveSailings = sailingFileIO::getNextFive();
+
+        cout << "SAILING ID" << "  ";
+        cout << left << setw(VESSEL_ID_LENGTH) << "VESSEL ID" << "   ";
+        cout << right << setw(LRL_LENGTH) << "LRL" << "   ";
+        cout << right << setw(HRL_LENGTH) << "HRL" << "  ";
+        cout << right << "FULL %" << "\n";
+        // iterates through the sailing(s) grabbed
+        for (int i = 0; i < 5; i++)
+        {
+            if (fiveSailings[i].getSailingID()[0] == '\0')
+            {
+                // if the sailingID is empty, it means there are no more sailings to display, user can loop through them again with '5'
+                sailingFileIO::reset();
+                break;
+            }
+            // prints the sailing information formatted according to the user manual
+            cout << fiveSailings[i].sailingID << "   ";
+            cout << left << setw(VESSEL_ID_LENGTH) << fiveSailings[i].vesselID << "   ";
+            cout << right << setw(LRL_LENGTH) << fiveSailings[i].lrl << "   ";
+            cout << right << setw(HRL_LENGTH) << fiveSailings[i].hrl << "   ";
+            int percentFull = (1 - ((fiveSailings[i].lrl + fiveSailings[i].hrl) / (fiveSailings[i].lcll + fiveSailings[i].hcll))) * 100;
+            cout << right << setw(PERCENT_LENGTH) << percentFull << "%\n";
+        }
 
         // prompts the user to enter an option, continues until valid input is received
         cout << "\n[0] Cancel\n[5] Show next 5\n\nEnter an option: ";
@@ -281,7 +338,7 @@ void Sailing::displayReport()
             {
                 cout << "Invalid option, please enter an option: ";
                 cin.clear();
-                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             }
             else
             {
@@ -290,9 +347,9 @@ void Sailing::displayReport()
                 {
                     reportActive = false;
                 }
-                // If input is 5, loop continues to show "next 5" (same data for now)
             }
         }
+        UI::displayFooter();
     }
 }
 
@@ -316,7 +373,7 @@ Sailing Sailing::getSailingFromIO(const char *sid)
     return sailingFileIO::getSailing(sid);
 }
 
-// functions for updating the lrl and hrl of a specific sailing
+// functions for updating the lrl and hrl of a specific sailing, subtracts f from lrl or hrl
 bool Sailing::lrlUpdate(float f)
 {
     if (lrl - f >= 0)
@@ -349,6 +406,28 @@ float Sailing::hrlRemaining() const
     return hrl;
 }
 
+// Add these getter function implementations after the existing functions:
+
+const char *Sailing::getVesselID() const {
+    return vesselID;
+}
+
+int Sailing::getLCLL() const {
+    return lcll;
+}
+
+int Sailing::getHCLL() const {
+    return hcll;
+}
+
+float Sailing::getLRL() const {
+    return lrl;
+}
+
+float Sailing::getHRL() const {
+    return hrl;
+}
+
 // private functions
 string Sailing::addDepTerm()
 {
@@ -365,6 +444,8 @@ string Sailing::addDepTerm()
         if (depTerm.length() != DEP_TERM_LENGTH)
         {
             cout << "Invalid departure terminal.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         else
         {
@@ -385,9 +466,11 @@ string Sailing::addDate()
 
         cin >> date;
         // date entered should be two digits to represent the date, month is not relevant
-        if (date.length() != DATE_LENGTH || stoi(date) < 0 || stoi(date) > 31)
+        if (date.length() != DATE_LENGTH || !std::all_of(date.begin(), date.end(), ::isdigit) || stoi(date) < 0 || stoi(date) > 28)
         {
             cout << "Invalid departure date.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         else
         {
@@ -408,9 +491,11 @@ string Sailing::addTime()
 
         cin >> time;
         // time entered should be two digits in 24 hour time, can't be below 0 or above 23
-        if (time.length() != TIME_LENGTH || stoi(time) < 0 || stoi(time) > 23)
+        if (time.length() != TIME_LENGTH || !std::all_of(time.begin(), time.end(), ::isdigit) || stoi(time) < 0 || stoi(time) > 23)
         {
             cout << "Invalid departure time.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         else
         {
@@ -434,6 +519,8 @@ string Sailing::addVessel()
         if (vessel.length() > VESSEL_LENGTH || vessel.length() == 0)
         {
             cout << "Invalid vessel ID.\n";
+            cin.clear();
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         else
         {
@@ -460,7 +547,7 @@ int Sailing::addLCLL()
         {
             cout << "Invalid LCLL.\n";
             cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         else
         {
@@ -487,7 +574,7 @@ int Sailing::addHCLL()
         {
             cout << "Invalid HCLL.\n";
             cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         else
         {
@@ -499,23 +586,18 @@ int Sailing::addHCLL()
 
 bool Sailing::confirm(int confirmOption)
 {
-
     while (true)
     {
         int input;
         cout << "\n[" << CANCEL_OPTION << "] Cancel\n";
-        cout << "[" << confirmOption << "] Confirm\n";
+        cout << "[" << confirmOption << "] Confirm\n\n";
         cout << "Enter an option: ";
         cin >> input;
         if (cin.fail() || (input != CANCEL_OPTION && input != confirmOption))
         {
-            if (cin.eof()) {
-                // Handle end of input - return false to cancel
-                return false;
-            }
             cout << "Invalid option.\n";
             cin.clear();
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
         else if (input == CANCEL_OPTION)
         {
@@ -527,4 +609,56 @@ bool Sailing::confirm(int confirmOption)
         }
     }
     return true;
+}
+
+void Sailing::createSailing(string line) {
+    // Initialize with empty values first
+    memset(sailingID, 0, sizeof(sailingID));
+    memset(vesselID, 0, sizeof(vesselID));
+    lcll = 0;
+    hcll = 0;
+    lrl = 0.0f;
+    hrl = 0.0f;
+    
+    if (line.empty()) {
+        return;
+    }
+    
+    try {
+        // Parse the line using delimiter '|'
+        vector<string> fields;
+        stringstream ss(line);
+        string field;
+        
+        // Split by delimiter
+        while (getline(ss, field, '|')) {
+            fields.push_back(field);
+        }
+        
+        // Need at least 6 fields: sailingID|vesselID|lcll|hcll|lrl|hrl
+        if (fields.size() >= 6) {
+            // Copy sailing ID (max 9 chars + null terminator)
+            strncpy(sailingID, fields[0].c_str(), sizeof(sailingID) - 1);
+            sailingID[sizeof(sailingID) - 1] = '\0';
+            
+            // Copy vessel ID (max 25 chars + null terminator)
+            strncpy(vesselID, fields[1].c_str(), sizeof(vesselID) - 1);
+            vesselID[sizeof(vesselID) - 1] = '\0';
+            
+            // Parse numeric fields
+            lcll = stoi(fields[2]);
+            hcll = stoi(fields[3]);
+            lrl = stof(fields[4]);
+            hrl = stof(fields[5]);
+        }
+    } catch (const exception& e) {
+        cerr << "Error parsing sailing line: " << e.what() << endl;
+        // Reset to empty state on error
+        memset(sailingID, 0, sizeof(sailingID));
+        memset(vesselID, 0, sizeof(vesselID));
+        lcll = 0;
+        hcll = 0;
+        lrl = 0.0f;
+        hrl = 0.0f;
+    }
 }

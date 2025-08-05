@@ -1,16 +1,3 @@
-// FILE: sailing.h
-//************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System
-// TEAM: Group 19
-// DATE: 2025/07/23
-//************************************************************
-// PURPOSE:
-//   Declares the interface for managing sailings, including
-//   adding, editing, and retrieving sailing records.
-//   Provides functionality for creating sailings, managing their
-//   attributes, and interfacing with the file I/O system for persistence.
-//************************************************************
-
 #ifndef SAILING_H
 #define SAILING_H
 
@@ -25,7 +12,7 @@ class Sailing
 private:
     // sailingID is used to identify sailings. Formatted terminal-date-hour
     char sailingID[10];
-    // vesselID represents the nme of the vessel used for the sailing
+    // vesselID represents the name of the vessel used for the sailing
     char vesselID[26];
     // the total amount of space for regular vehicles on the vessel.
     int lcll;
@@ -70,6 +57,26 @@ public:
     //-----------------------------------------------------------------------------------------
     // getter function for the sailing ID
     const char *getSailingID() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for the vessel ID
+    const char *getVesselID() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for LCLL
+    int getLCLL() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for HCLL
+    int getHCLL() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for LRL
+    float getLRL() const;
+
+    //-----------------------------------------------------------------------------------------
+    // getter function for HRL
+    float getHRL() const;
 
     //-----------------------------------------------------------------------------------------
     // used by other classes to access sailings from sailingFileIO

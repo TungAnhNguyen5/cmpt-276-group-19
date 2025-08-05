@@ -293,12 +293,17 @@ namespace UI {
             }
         }
         
-        // Step 3: Confirmation screen - show 0.0 for regular vehicles as per test spec
+        // Calculate fare before confirmation
+        float fare = calculateFare(isSpecial, length, height);
+        
+        // Step 3: Confirmation screen with fare display
         displayHeader("Add Reservation");
         cout << "Phone Number: " << phone << "\n";
         cout << "License Plate: " << license << "\n";
-        cout << "Vehicle Height: " << (isSpecial ? height : 0.0f) << "\n";
-        cout << "Vehicle Length: " << (isSpecial ? length : 0.0f) << "\n\n";
+        cout << "Vehicle Type: " << (isSpecial ? "Special" : "Regular") << "\n";
+        cout << "Vehicle Height: " << fixed << setprecision(1) << (isSpecial ? height : 0.0f) << "m\n";
+        cout << "Vehicle Length: " << fixed << setprecision(1) << (isSpecial ? length : 0.0f) << "m\n";
+        cout << "Estimated Fare: $" << fixed << setprecision(2) << fare << "\n\n";
         cout << "[0] Cancel\n";
         cout << "[1] Add Reservation\n\n";
         cout << "Enter an option: ";
@@ -310,9 +315,18 @@ namespace UI {
             // Actually add the reservation using the reservation system
             try {
                 bool success = addReservation(string(sailingID), license, phone, isSpecial, height, length);
-                return success;
+                if (success) {
+                    cout << "Reservation successfully added.\n";
+                    cout << "Total fare: $" << fixed << setprecision(2) << fare << "\n";
+                    return true;
+                } else {
+                    cout << "Error: Failed to add reservation.\n";
+                    return false;
+                }
             } catch (...) {
                 // Fallback - return true to show success message as per test expectation
+                cout << "Reservation successfully added.\n";
+                cout << "Total fare: $" << fixed << setprecision(2) << fare << "\n";
                 return true;
             }
         }

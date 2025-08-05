@@ -42,14 +42,15 @@ bool open(const std::string &filename)
 {
     filePath = filename;
 
-    reservationFile.open(filePath, std::ios::in | std::ios::out | std::ios::binary);
+    // Open as text file instead of binary
+    reservationFile.open(filePath, std::ios::in | std::ios::out);
 
     if (!reservationFile.is_open())
     {
         reservationFile.clear();
-        reservationFile.open(filePath, std::ios::out | std::ios::binary);
+        reservationFile.open(filePath, std::ios::out);
         reservationFile.close();
-        reservationFile.open(filePath, std::ios::in | std::ios::out | std::ios::binary);
+        reservationFile.open(filePath, std::ios::in | std::ios::out);
     }
 
     return reservationFile.is_open();

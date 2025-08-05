@@ -1,16 +1,3 @@
-// FILE: sailingFileIO.h
-//************************************************************
-// PROJECT: CMPT 276 – Ferry Reservation Software System
-// TEAM: Group 19
-// DATE: 2025/07/23
-//************************************************************
-// PURPOSE:
-//   Declares the interface for file I/O operations on Sailing records,
-//   including opening, closing, reading, writing, and deleting sailings.
-//   Provides functionality for managing sailing records in a binary file format.
-//************************************************************
-
-
 #ifndef SAILING_FILE_IO_H
 #define SAILING_FILE_IO_H
 
@@ -18,10 +5,11 @@
 #include "sailing.h"
 #include <cstring>
 #include <iostream>
-#include <unistd.h>
-#include <fcntl.h> 
+#include <string>
+#include <sstream>
 
-// class used to read and write the saved sailings
+//-------------------------------------------------------------------------------------------------
+// class used to read and write the saved sailings in text format
 class sailingFileIO
 {
 private:
@@ -31,10 +19,16 @@ private:
     static void createFile();
     // helper function for deleting to get the last one
     static Sailing getLast();
-    //helper function for truncating the file
+    // helper function for truncating the file
     static void truncateFile();
+    // helper function to convert sailing to text line
+    static std::string sailingToString(const Sailing& sailing);
+    // helper function to parse sailing from text line
+    static Sailing parseSailingLine(const std::string& line);
 
 public:
+    
+    //-----------------------------------------------------------------------------------------
     // closes the file saved, returns false if it is unable to
     static bool closeFile();
 

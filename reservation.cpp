@@ -28,11 +28,13 @@
 //--------------------------------------------------
 // Function: initialize
 //--------------------------------------------------
+// Function: initialize
+//--------------------------------------------------
 // Opens the reservation file to initialize the system.
 // Required before any other reservation operations can occur.
 void initialize()
 {
-    open("reservation.txt");
+    open("reservation.dat");
 }
 
 //--------------------------------------------------
